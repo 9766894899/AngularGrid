@@ -1,0 +1,50 @@
+.sort-icon {
+    display: inline-block;
+    vertical-align: middle;
+    margin-left: 4px; /* Adjust margin as needed */
+  }
+  
+  .fa {
+    font-size: 12px; /* Adjust font size as needed */
+  }
+  
+  .fa-sort:before {
+    content: '\f0dc'; /* Font Awesome sort icon */
+  }
+  
+  .fa-sort-asc:before {
+    content: '\f0de'; /* Font Awesome sort ascending icon */
+  }
+  
+  .fa-sort-desc:before {
+    content: '\f0dd'; /* Font Awesome sort descending icon */
+  }
+  
+
+  .container {
+    padding: 20px;
+  }
+  
+  .header-with-filter {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 5px;
+  }
+  
+  .header-with-filter div {
+    display: flex;
+    /* justify-content: space-between; */
+    width: 100%;
+    cursor: pointer;
+  }
+  
+  .header-with-filter input {
+    width: 100%;
+    margin-top: 5px;
+  }
+  
+  .sort-icon {
+    margin-left: 5px;
+  }
+  

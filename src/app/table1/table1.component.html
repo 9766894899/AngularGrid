@@ -1,0 +1,55 @@
+<div class="container">
+    <ngx-datatable
+      class="material"
+      [rows]="rows"
+      [columns]="columns"
+      [columnMode]="'force'"
+      [headerHeight]="80"
+      [footerHeight]="50"
+      [rowHeight]="'auto'"
+      [limit]="10">
+  
+      <ngx-datatable-column name="ID">
+        <ng-template ngx-datatable-header-template>
+          <div class="header-with-filter" (click)="onSort('id')">
+            <div>
+              ID <span class="sort-icon">{{ getSortIcon('id') }}</span>
+            </div>          
+          </div>
+          <input type="text" [disabled]="1" (input)="updateFilter($event, 'id')" placeholder="Filter ID">
+        </ng-template>
+        <ng-template ngx-datatable-cell-template let-value="value">
+          {{ value }}
+        </ng-template>
+      </ngx-datatable-column>
+  
+      <ngx-datatable-column name="Name">
+        <ng-template ngx-datatable-header-template>
+          <div class="header-with-filter" (click)="onSort('name')">
+            <div>
+              Name <span class="sort-icon">{{ getSortIcon('name') }}</span>
+            </div>          
+          </div>
+          <input type="text" (input)="updateFilter($event, 'name')" placeholder="Filter Name">
+        </ng-template>
+        <ng-template ngx-datatable-cell-template let-value="value">
+          {{ value }}
+        </ng-template>
+      </ngx-datatable-column>
+  
+      <ngx-datatable-column name="Email">
+        <ng-template ngx-datatable-header-template>
+          <div class="header-with-filter" (click)="onSort('email')">
+            <div>
+              Email <span class="sort-icon">{{ getSortIcon('email') }}</span>
+            </div>          
+          </div>
+          <input type="text" (input)="updateFilter($event, 'email')" placeholder="Filter Email">
+        </ng-template>
+        <ng-template ngx-datatable-cell-template let-value="value">
+          {{ value }}
+        </ng-template>
+      </ngx-datatable-column>
+    </ngx-datatable>
+  </div>
+  
