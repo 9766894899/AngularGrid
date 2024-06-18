@@ -1,1 +1,115 @@
-<app-table1></app-table1>
+<div class="container">
+  <!-- <h1>Custom NGX DataTable Example</h1> -->
+  
+  <ngx-datatable
+    class="bootstrap ngx-datatable"
+    [rows]="rows"
+    [columns]="columns"
+    [columnMode]="'force'"
+    [headerHeight]="70"
+    [footerHeight]="50"
+    [rowHeight]="70"
+    [externalPaging]="false"
+    [count]="totalCount"
+    (page)="onPageChange($event)"
+    
+    (activate)="onActivate($event)">
+    
+    <!-- Custom Column Headers -->
+    <ngx-datatable-column name="Name" prop="name">
+      <ng-template ngx-datatable-header-template>
+        <div class="header-with-filter" (click)="onSort('name')">
+          <div>
+            Name <span class="sort-icon">{{ getSortIcon('name') }}</span>
+          </div>          
+        </div>
+        <input type="text" class="form-control filter" (input)="updateFilter($event, 'name')" placeholder="">
+      </ng-template>
+      <ng-template let-value="value" ngx-datatable-cell-template>
+        <div class="cell-content icon-content">
+          <div class="initial-icon">{{ getInitialsIcon(value) }}</div>
+          <div class="name-role">
+            <div class="name">{{ value }}</div>
+            <div class="role">Relation Manager</div>
+          </div>
+        </div>
+      </ng-template>
+    </ngx-datatable-column>
+    
+    <ngx-datatable-column name="Connection Name" prop="connectionName">
+      <ng-template ngx-datatable-header-template>
+        <div class="header-with-filter" (click)="onSort('connectionName')">
+          <div>
+            Connection Name <span class="sort-icon">{{ getSortIcon('connectionName') }}</span>
+          </div>          
+        </div>
+        <input type="text" class="form-control filter" (input)="updateFilter($event, 'connectionName')" placeholder="">
+      </ng-template>
+      <ng-template let-value="value" ngx-datatable-cell-template>
+        <div class="cell-content">
+          <a href="#" class="connection-name">{{ value }}</a>
+          <div class="uen">UEN: 3123123</div>
+        </div>
+      </ng-template>
+    </ngx-datatable-column>
+    
+    <ngx-datatable-column name="Client Or Prospect" prop="clientOrProspect">
+      <ng-template ngx-datatable-header-template>
+        <div class="header-with-filter" (click)="onSort('clientOrProspect')">
+          <div>
+            Client Or Prospect <span class="sort-icon">{{ getSortIcon('clientOrProspect') }}</span>
+          </div>          
+        </div>
+        <input type="text" class="form-control filter" (input)="updateFilter($event, 'clientOrProspect')" placeholder="">
+      </ng-template>
+    </ngx-datatable-column>
+    
+    <ngx-datatable-column name="Request Id" prop="requestId">
+      <ng-template ngx-datatable-header-template>
+        <div class="header-with-filter" (click)="onSort('requestId')">
+          <div>
+            Request Id <span class="sort-icon">{{ getSortIcon('requestId') }}</span>
+          </div>          
+        </div>
+        <input type="text" class="form-control filter" (input)="updateFilter($event, 'requestId')" placeholder="">
+      </ng-template>
+      <ng-template let-value="value" ngx-datatable-cell-template>
+        <a href="#" class="request-id">{{ value }}</a>
+      </ng-template>
+    </ngx-datatable-column>
+    
+    <ngx-datatable-column name="Request Status" prop="requestStatus">
+
+      <ng-template ngx-datatable-header-template>
+        <div class="header-with-filter" (click)="onSort('requestStatus')">
+          <div>
+            Request Status <span class="sort-icon">{{ getSortIcon('requestStatus') }}</span>
+          </div>          
+        </div>
+        <!-- <input type="text" class="form-control filter" (input)="updateFilter($event, 'requestStatus')" placeholder=""> -->
+        <select class="form-control"
+                    (change)="updateFilter($event,'requestStatus')">
+              <option value="">All</option>
+              <option value="Pending">Pending</option>
+              <option value="Submitted">Submitted</option>
+              <option value="Approved">Approved</option>
+            </select>
+      </ng-template>
+
+      <ng-template let-value="value" ngx-datatable-cell-template>
+        <span [ngClass]="getStatusClass(value)">
+          <span class="status-icon">{{ getStatusIcon(value) }}</span>
+          <span class="status-text">{{ value }}</span>
+        </span>
+      </ng-template>
+    </ngx-datatable-column>
+    
+    <ngx-datatable-column name="Last Modified" prop="lastModified">
+      <div class="header-with-filter1">
+        <div>
+          Last Modified
+        </div>          
+      </div>
+    </ngx-datatable-column>
+  </ngx-datatable>
+</div>

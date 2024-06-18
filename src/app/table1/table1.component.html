@@ -16,7 +16,7 @@
               ID <span class="sort-icon">{{ getSortIcon('id') }}</span>
             </div>          
           </div>
-          <input type="text" [disabled]="1" (input)="updateFilter($event, 'id')" placeholder="Filter ID">
+          <!-- <input type="text" [disabled]="disabled" (input)="updateFilter($event, 'id')" placeholder="Filter ID"> -->
         </ng-template>
         <ng-template ngx-datatable-cell-template let-value="value">
           {{ value }}
