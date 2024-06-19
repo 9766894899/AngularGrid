@@ -1,0 +1,36 @@
+<!-- <mat-tab-group>
+    <mat-tab *ngFor="let label of tabLabels; let i = index" [label]="label">
+        <ng-template matTabContent>
+            11
+            <ng-content select="[tabContentIndex='{{i}}']"></ng-content>
+        </ng-template>
+    </mat-tab>
+</mat-tab-group> -->
+
+<!-- <mat-tab-group>
+    <mat-tab *ngFor="let label of tabLabels; let i = index" [label]="label">
+      <ng-template matTabContent>
+        11
+        <ng-content select="[tabContentIndex='{{i}}']"></ng-content>
+      </ng-template>
+    </mat-tab>
+  </mat-tab-group>
+  
+   -->
+
+   <mat-tab-group>
+    <mat-tab *ngFor="let label of tabLabels; let i = index" [label]="label">
+        <ng-content select="[tabContentIndex='{{i}}']"></ng-content>
+      <!-- <ng-container *ngIf="i === 0">
+        <ng-content select="[tabContentIndex='0']"></ng-content>
+      </ng-container>
+      <ng-container *ngIf="i === 1">
+        <ng-content select="[tabContentIndex='1']"></ng-content>
+      </ng-container>
+      <ng-container *ngIf="i === 2">
+        <ng-content select="[tabContentIndex='2']"></ng-content>
+      </ng-container> -->
+      <!-- Add more containers as necessary for additional tabs -->
+    </mat-tab>
+  </mat-tab-group>
+  

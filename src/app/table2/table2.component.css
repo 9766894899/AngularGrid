@@ -1,0 +1,155 @@
+/* Basic styling */
+.container {
+    max-width: 1200px;
+    margin: 20px auto;
+    padding: 20px;
+    /* border: none; */
+  }
+  
+  h1 {
+    text-align: center;
+  }
+  
+  .ngx-datatable.bootstrap {
+    /* border: 1px solid #ccc; */
+    font-family: Arial, sans-serif;
+  }
+  
+  .ngx-datatable .datatable-header-cell {
+    background-color: #f0f0f0; /* Header background color */
+    border-bottom: 1px solid #ccc;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+  }
+  
+  .ngx-datatable .datatable-body-row {
+    border-bottom: 1px solid #eee; /* Row border color */
+  }
+  
+  .ngx-datatable .datatable-body-cell {
+    padding: 10px;
+  }
+  
+  /* Custom styles for specific columns */
+  .ngx-datatable  .datatable-body-cell {
+    display: flex;
+    align-items: center;
+  }
+  
+  .ngx-datatable  .initial-icon {
+    background-color: #308ebb;
+    width: 30px;
+    height: 30px;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    margin-right: 10px;
+    border-radius: 50%;
+  }
+  
+  .header-with-filter{
+    cursor: pointer;
+  }
+  
+  .ngx-datatable  .name-role {
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .ngx-datatable .name {
+    font-weight: bold;
+  }
+  
+  .ngx-datatable .datatable-body-cell {
+    display: flex;
+    align-items: center;
+  }
+  
+  .ngx-datatable .connection-name {
+    color: #007bff; /* Blue color for links */
+    text-decoration: none;
+  }
+  
+  .ngx-datatable  .uen {
+    /* margin-left: 10px; */
+    color: #6c757d; /* Gray color for secondary text */
+  }
+  
+  .ngx-datatable  .datatable-body-cell {
+    display: flex;
+    align-items: center;
+  }
+  
+  .ngx-datatable  .request-id {
+    color: #007bff; /* Blue color for links */
+    text-decoration: none !important;
+  }
+  
+  .ngx-datatable  .datatable-body-cell {
+    display: flex;
+    align-items: center;
+  }
+  
+  .ngx-datatable  .status-icon {
+    margin-right: 5px;
+  }
+  
+  .ngx-datatable  .status-text {
+    font-weight: bold;
+  }
+  
+  /* Pagination styles */
+  .ngx-datatable .datatable-pager {
+    text-align: center;
+    margin-top: 20px;
+  }
+  
+  .ngx-datatable .datatable-pager .pager-count {
+    font-size: 14px;
+    margin-right: 10px;
+  }
+  
+  .ngx-datatable .datatable-pager .pager-nav {
+    display: inline-block;
+    padding: 0 5px;
+    cursor: pointer;
+  }
+  
+  .ngx-datatable .datatable-pager .pager-nav.active {
+    background-color: #007bff; /* Active page background color */
+    color: #fff; /* Active page text color */
+    border-radius: 5px;
+  }
+  
+  /* Status classes */
+  .status-pending {
+    color: #dc3545; /* Red color for pending status */
+    background-color: #f8d7da8c; /* Faint red background */
+    padding-left: 5px;
+    padding-right: 5px;
+  }
+  
+  .status-submitted {
+    color: #dc3545; /* Red color for submitted status */
+    background-color: #f4eded;; /* Faint red background */
+    padding-left: 5px;
+    padding-right: 5px;
+  }
+  
+  .status-approved {
+    color: #28a745; /* Green color for approved status */
+    background-color: #dbf1e0; /* Faint green background */
+    padding-left: 5px;
+    padding-right: 5px;
+  }
+  
+  .filter{
+    width: 80% !important;
+  }
+  
+  .icon-content{
+    display: flex;
+    align-items: center;
+  }
