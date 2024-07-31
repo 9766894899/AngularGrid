@@ -1,0 +1,47 @@
+import { Component } from '@angular/core';
+
+@Component({
+  selector: 'app-doughnut-chart',
+  templateUrl: './doughnut-chart.component.html',
+  styleUrls: ['./doughnut-chart.component.css']
+})
+export class DoughnutChartComponent {
+  public doughnutChartLabels: string[] = ['Download Sales', 'In-Store Sales', 'Mail-Order Sales'];
+  public doughnutChartData: number[] = [350, 450, 100];
+  public doughnutChartType: string = 'doughnut';
+
+  public chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'bottom', // Change this to 'top', 'left', 'bottom', or 'right'
+        labels: {
+          generateLabels: (chart) => {
+            const datasets = chart.data.datasets;
+            const labels = chart.data.labels;
+            return datasets[0].data.map((value, index) => {
+              return {
+                text: `${labels[index]}: ${value}`, // Display label and value
+                fillStyle: datasets[0].backgroundColor[index],
+                hidden: isNaN(datasets[0].data[index]) || chart.getDatasetMeta(0).data[index].hidden,
+                index: index
+              };
+            });
+          },
+          font: {
+            size: 14
+          },
+          color: '#000', // Legend text color
+        },
+        align: 'center', // Align legend horizontally
+      }
+    }
+  };
+
+  public chartColors: any[] = [
+    {
+      backgroundColor: ['#FF7360', '#6FC8CE', '#FAFFF2'],
+    }
+  ];
+}
