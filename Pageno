@@ -1,0 +1,56 @@
+If you're passing both pageNo and pageSize while calling the API, the logic remains the same, but the API will return only a specific number of records based on the pageSize. Here's how you can structure the process to keep calling the API until all records are fetched:
+
+Steps:
+
+1. Set the initial values for pageNo and pageSize.
+
+
+2. Call the API using the current pageNo and pageSize.
+
+
+3. Process the records from the response.
+
+
+4. Increment pageNo and repeat the call until you've fetched all records.
+
+
+
+Example in Python:
+
+pageNo = 1  # Start with the first page
+pageSize = 100  # Number of records per page (customize based on your requirement)
+total_pages = 1  # Initialize total pages
+
+while pageNo <= total_pages:
+    # Make the API call with the current page number and page size
+    response = api_call(pageNo=pageNo, pageSize=pageSize)
+    
+    # Process the records from the response
+    records = response["records"]
+    total_pages = response["totalNoOfPages"]  # Get the total number of pages from the response
+    
+    # Do something with the records, like storing or processing them
+    process_records(records)
+    
+    # Increment the page number to fetch the next set of records
+    pageNo += 1
+
+Key Points:
+
+1. Initial API Call: Start by setting pageNo = 1 and an appropriate pageSize.
+
+
+2. Process the Response: Extract the records and the total number of pages (totalNoOfPages) from the response.
+
+
+3. Continue Fetching: Continue fetching records by incrementing pageNo until all pages have been fetched.
+
+
+4. Custom Page Size: Adjust pageSize as needed for performance or API limits.
+
+
+
+This pattern will work with any paginated API where the total number of pages is known upfront and you fetch a specific number of records per page.
+
+If you'd like a more specific implementation for a particular programming language, let me know!
+
