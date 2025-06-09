@@ -1,0 +1,400 @@
+To integrate `quill1.3.7-table-module` into Quill 1.3.7 in an Angular 2+ application with `ngx-quill`, you need to properly register the module, configure the editor, and ensure compatibility to avoid errors like "table not registered" or issues with backspace bindings. Unlike `quill-better-table`, which caused the `Cannot read property 'pop' of undefined` error due to its incompatibility with Quill 1.3.7, `quill1.3.7-table-module` is explicitly designed for Quill 1.3.7, making it a suitable alternative for adding table functionality.
+
+Below is a step-by-step guide to integrate `quill1.3.7-table-module` into your Angular project using Quill 1.3.7 and `ngx-quill`.
+
+### Steps to Integrate `quill1.3.7-table-module`
+
+#### 1. **Install Dependencies**
+Ensure you have the correct versions of Quill, `ngx-quill`, and `quill1.3.7-table-module` installed.
+
+Update your `package.json`:
+```json
+"dependencies": {
+  "quill": "^1.3.7",
+  "ngx-quill": "^14.3.0",
+  "quill1.3.7-table-module": "^1.4.2"
+}
+```
+
+Install dependencies:
+```bash
+npm install
+```
+
+- **Note**: `quill1.3.7-table-module@1.4.2` is the latest version as of its last update (7 months ago) and is confirmed compatible with Quill 1.3.7.[](https://www.npmjs.com/package/quill1.3.7-table-module)
+
+#### 2. **Register `quill1.3.7-table-module`**
+Register the `quill1.3.7-table-module` with Quill before initializing the editor. This is done using `Quill.register` in your Angular module.
+
+**app.module.ts**:
+```typescript
+import { NgModule } from '@angular/core';
+import { BrowserModule } from '@angular/platform-browser';
+import { QuillModule } from 'ngx-quill';
+import Quill from 'quill';
+import TableHandler, { rewirteFormats } from 'quill1.3.7-table-module';
+
+// Register quill1.3.7-table-module
+Quill.register({ [`modules/${TableHandler.moduleName}`]: TableHandler }, true);
+
+// Rewrite formats to handle exceptions (optional, but recommended)
+rewirteFormats();
+
+@NgModule({
+  declarations: [AppComponent],
+  imports: [
+    BrowserModule,
+    QuillModule.forRoot({
+      modules: {
+        toolbar: [TableHandler.toolName], // Add table button to toolbar
+        [TableHandler.moduleName]: {
+          fullWidth: true, // Make tables full-width
+          customButton: 'Insert Table' // Custom label for table button
+        },
+        keyboard: {
+          bindings: {
+            backspace: {
+              key: 8,
+              handler: () => true // Ensure backspace works without errors
+            }
+          }
+        }
+      },
+      theme: 'snow'
+    })
+  ],
+  bootstrap: [AppComponent]
+})
+export class AppModule {}
+```
+
+- **Key Points**:
+  - `TableHandler.moduleName` dynamically provides the module name (typically `'table'`).
+  - `rewirteFormats()` adjusts native Quill formats to ensure correct rendering in tables (e.g., lists within cells). You can skip it, but some formats may display incorrectly.[](https://www.npmjs.com/package/quill1.3.7-table-module)
+  - The `toolbar` module includes `TableHandler.toolName` to add a table insertion button.
+  - The `backspace` binding is included to prevent potential backspace-related errors, similar to the issue with `quill-better-table`.
+
+#### 3. **Set Up the Component**
+Create a component to host the Quill editor and add functionality to insert tables programmatically.
+
+**app.component.ts**:
+```typescript
+import { Component, AfterViewInit } from '@angular/core';
+import Quill from 'quill';
+import TableHandler from 'quill1.3.7-table-module';
+
+@Component({
+  selector: 'app-root',
+  template: `
+    <quill-editor [styles]="{ height: '300px' }"></quill-editor>
+    <button (click)="insertTable()">Insert Table</button>
+  `
+})
+export class AppComponent implements AfterViewInit {
+  private quill: any;
+
+  ngAfterViewInit() {
+    // Access Quill instance
+    this.quill = document.querySelector('.ql-editor')?.closest('.ql-container')?.['Quill'];
+    if (this.quill) {
+      console.log('Modules:', this.quill.getModules());
+      console.log('Table module:', this.quill.getModule(TableHandler.moduleName));
+      console.log('Backspace binding:', this.quill.keyboard.bindings[8]);
+    } else {
+      console.error('Quill instance not found');
+    }
+  }
+
+  insertTable() {
+    if (this.quill) {
+      const tableModule = this.quill.getModule(TableHandler.moduleName);
+      if (tableModule) {
+        tableModule.create({ row: 3, col: 3 }); // Insert a 3x3 table
+      } else {
+        console.error('Table module not registered');
+      }
+    } else {
+      console.error('Quill instance not initialized');
+    }
+  }
+}
+```
+
+- **Key Points**:
+  - Use `TableHandler.moduleName` to reference the table module (e.g., `'table'`).
+  - The `create` method inserts a table with specified rows and columns (e.g., `{ row: 3, col: 3 }`).[](https://www.npmjs.com/package/quill1.3.7-table-module)
+  - Debugging logs help verify that the table module is registered correctly.
+
+#### 4. **Include CSS**
+Add the necessary CSS for Quill and `quill1.3.7-table-module` in `angular.json` to ensure proper styling.
+
+**angular.json**:
+```json
+"styles": [
+  "src/styles.css",
+  "node_modules/quill/dist/quill.snow.css",
+  "node_modules/quill1.3.7-table-module/dist/index.css"
+]
+```
+
+Rebuild the project:
+```bash
+ng build
+```
+
+- **Note**: The `index.css` file from `quill1.3.7-table-module` styles the tables correctly.[](https://www.npmjs.com/package/quill1.3.7-table-module)
+
+#### 5. **Verify and Test**
+- **Check Module Registration**:
+  - Open the browser console and verify the logs from `ngAfterViewInit`:
+    - `Modules` should include `table`.
+    - `Table module` should return an object.
+    - `Backspace binding` should show a binding for key code `8`.
+- **Test Table Functionality**:
+  - Click the table button in the toolbar (if visible) or the custom "Insert Table" button to create a 3x3 table.
+  - Type in a table cell and press Backspace to ensure no errors occur.
+- **Check for Errors**:
+  - Ensure the "table not registered" error is resolved.
+  - Confirm the `Cannot read property 'pop' of undefined` error from `quill-better-table` is gone, as `quill1.3.7-table-module` does not rely on the same problematic backspace binding.
+
+#### 6. **Handle the Toolbar**
+The `quill1.3.7-table-module` adds a table button to the toolbar via `TableHandler.toolName`. If the button doesn’t appear, ensure the toolbar module is correctly configured. You can also customize the toolbar:
+
+```typescript
+toolbar: [
+  [TableHandler.toolName], // Table button
+  ['bold', 'italic', 'underline'],
+  [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+  ['link']
+]
+```
+
+- **Note**: The table button triggers a custom event to create a table with specified rows and columns.[](https://www.npmjs.com/package/quill1.3.7-table-module)
+
+#### 7. **Optional: Rewrite Formats**
+The `rewirteFormats()` function adjusts Quill’s native formats (e.g., lists, headers) to display correctly within table cells. If you skip it, some formats may render incorrectly, but it’s not mandatory. Test without it first, and include it if you notice issues with lists or other formats in tables.
+
+#### 8. **Troubleshooting**
+If you encounter issues:
+- **"Table not registered" Error**:
+  - Ensure `Quill.register({ [`modules/${TableHandler.moduleName}`]: TableHandler }, true)` is called before `QuillModule.forRoot`.
+  - Verify `TableHandler.moduleName` is used in the configuration (e.g., `modules[TableHandler.moduleName]`).
+  - Check that `quill1.3.7-table-module` is installed correctly (`npm list quill1.3.7-table-module`).
+- **Backspace Issues**:
+  - The `backspace` binding in the configuration prevents errors similar to `quill-better-table`. If issues persist, log `this.quill.keyboard.bindings[8]` to confirm the binding.
+- **Table Button Missing**:
+  - Ensure `toolbar: [TableHandler.toolName]` is included in the configuration.
+  - Check the browser console for errors loading `index.css`.
+- **Console Logs**:
+  - Share the output of `console.log('Modules:', this.quill.getModules())` and `console.log('Table module:', this.quill.getModule(TableHandler.moduleName))`.
+
+#### 9. **Complete Example**
+Here’s the full setup for reference:
+
+**app.module.ts**:
+```typescript
+import { NgModule } from '@angular/core';
+import { BrowserModule } from '@angular/platform-browser';
+import { QuillModule } from 'ngx-quill';
+import Quill from 'quill';
+import TableHandler, { rewirteFormats } from 'quill1.3.7-table-module';
+
+Quill.register({ [`modules/${TableHandler.moduleName}`]: TableHandler }, true);
+rewirteFormats();
+
+@NgModule({
+  declarations: [AppComponent],
+  imports: [
+    BrowserModule,
+    QuillModule.forRoot({
+      modules: {
+        toolbar: [
+          [TableHandler.toolName],
+          ['bold', 'italic', 'underline'],
+          [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+          ['link']
+        ],
+        [TableHandler.moduleName]: {
+          fullWidth: true,
+          customButton: 'Insert Table'
+        },
+        keyboard: {
+          bindings: {
+            backspace: {
+              key: 8,
+              handler: () => true
+            }
+          }
+        }
+      },
+      theme: 'snow'
+    })
+  ],
+  bootstrap: [AppComponent]
+})
+export class AppModule {}
+```
+
+**app.component.ts**:
+```typescript
+import { Component, AfterViewInit } from '@angular/core';
+import TableHandler from 'quill1.3.7-table-module';
+
+@Component({
+  selector: 'app-root',
+  template: `
+    <quill-editor [styles]="{ height: '300px' }"></quill-editor>
+    <button (click)="insertTable()">Insert Table</button>
+  `
+})
+export class AppComponent implements AfterViewInit {
+  private quill: any;
+
+  ngAfterViewInit() {
+    this.quill = document.querySelector('.ql-editor')?.closest('.ql-container')?.['Quill'];
+    if (this.quill) {
+      console.log('Modules:', this.quill.getModules());
+      console.log('Table module:', this.quill.getModule(TableHandler.moduleName));
+      console.log('Backspace binding:', this.quill.keyboard.bindings[8]);
+    } else {
+      console.error('Quill instance not found');
+    }
+  }
+
+  insertTable() {
+    if (this.quill) {
+      const tableModule = this.quill.getModule(TableHandler.moduleName);
+      if (tableModule) {
+        tableModule.create({ row: 3, col: 3 });
+      } else {
+        console.error('Table module not registered');
+      }
+    } else {
+      console.error('Quill instance not initialized');
+    }
+  }
+}
+```
+
+**angular.json**:
+```json
+"styles": [
+  "src/styles.css",
+  "node_modules/quill/dist/quill.snow.css",
+  "node_modules/quill1.3.7-table-module/dist/index.css"
+]
+```
+
+**package.json**:
+```json
+"dependencies": {
+  "quill": "^1.3.7",
+  "ngx-quill": "^14.3.0",
+  "quill1.3.7-table-module": "^1.4.2"
+}
+```
+
+#### 10. **Comparison with `quill-better-table`**
+- **Why `quill1.3.7-table-module`?**:
+  - Specifically designed for Quill 1.3.7, avoiding compatibility issues like those with `quill-better-table@1.2.10` (built for Quill 2.0.x-dev.x).[](https://www.npmjs.com/package/quill1.3.7-table-module)
+  - No reported backspace binding issues, as it doesn’t rely on `keyboard.bindings['Backspace']`.
+  - Recent updates (7 months ago) suggest better maintenance than `quill-table` (7 years since last update).[](https://www.npmjs.com/package/quill-table)
+- **Features**:
+  - Supports table creation, row/column insertion, and full-width tables.
+  - Includes a custom toolbar button for table insertion.[](https://www.npmjs.com/package/quill1.3.7-table-module)
+- **Limitations**:
+  - Has 0 open-source maintainers, which may affect long-term support.[](https://socket.dev/npm/package/quill1.3.7-table-module)
+  - Fewer advanced features (e.g., context menus) compared to `quill-better-table`.
+
+#### 11. **Alternative: `quill-table`**
+If `quill1.3.7-table-module` doesn’t meet your needs, try `quill-table`:
+```bash
+npm install quill-table
+```
+
+**app.module.ts**:
+```typescript
+import { NgModule } from '@angular/core';
+import { BrowserModule } from '@angular/platform-browser';
+import { QuillModule } from 'ngx-quill';
+import Quill from 'quill';
+import { TableModule } from 'quill-table';
+
+Quill.register('modules/table', TableModule);
+
+@NgModule({
+  imports: [
+    BrowserModule,
+    QuillModule.forRoot({
+      modules: {
+        toolbar: [['table']], // Add table button
+        table: true,
+        keyboard: {
+          bindings: {
+            backspace: {
+              key: 8,
+              handler: () => true
+            }
+          }
+        }
+      },
+      theme: 'snow'
+    })
+  ],
+  // ...
+})
+export class AppModule {}
+```
+
+**app.component.ts**:
+```typescript
+import { Component, AfterViewInit } from '@angular/core';
+
+@Component({
+  selector: 'app-root',
+  template: `
+    <quill-editor [styles]="{ height: '300px' }"></quill-editor>
+    <button (click)="insertTable()">Insert Table</button>
+  `
+})
+export class AppComponent implements AfterViewInit {
+  private quill: any;
+
+  ngAfterViewInit() {
+    this.quill = document.querySelector('.ql-editor')?.closest('.ql-container')?.['Quill'];
+    console.log('Table module:', this.quill.getModule('table'));
+  }
+
+  insertTable() {
+    if (this.quill) {
+      const tableModule = this.quill.getModule('table');
+      if (tableModule) {
+        tableModule.insertTable(3, 3); // Adjust based on module API
+      } else {
+        console.error('Table module not registered');
+      }
+    }
+  }
+}
+```
+
+- **Note**: `quill-table` is older (last updated 7 years ago) and may have issues like improper list formatting or backspace behavior in cells.[](https://www.npmjs.com/package/quill-table)
+
+#### 12. **Fallback: Custom Table Implementation**
+If neither module works, you can create a custom table implementation using Quill’s Parchment API to define table blots. This requires significant effort and is not recommended unless specific customization is needed. See [this Stack Overflow post](https://stackoverflow.com/questions/52331928/how-can-i-initialize-table-in-quill-js-2-0) for guidance.[](https://stackoverflow.com/questions/52331928/how-can-i-initialize-table-in-quill-js-2-0)
+
+#### 13. **Production Considerations**
+- **Stability**: Stick with Quill 1.3.7 for production, as Quill 2.0.x-dev.x is unstable.[](https://dalezak.medium.com/using-tables-in-quill-js-with-rails-and-stimulus-ddd0521ab0cb)
+- **Maintenance**: `quill1.3.7-table-module` is recently updated but has no open-source maintainers, so monitor for future support.[](https://socket.dev/npm/package/quill1.3.7-table-module)
+- **Testing**: Test table insertion, editing, and backspace behavior thoroughly in your Angular app.
+
+### Next Steps
+1. Implement `quill1.3.7-table-module` using the provided code.
+2. Test table insertion and backspace functionality.
+3. If issues persist, share:
+   - The full error stack trace (if any).
+   - Output of `npm list quill ngx-quill quill1.3.7-table-module`.
+   - Console logs from `ngAfterViewInit`.
+   - Your current `app.module.ts` and `app.component.ts`.
+
+This setup should resolve the issues with `quill-better-table` and provide reliable table functionality in Quill 1.3.7. Let me know if you need further assistance!
