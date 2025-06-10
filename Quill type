@@ -1,0 +1,211 @@
+import Quill, { QuillOptionsStatic } from 'quill';
+import Parchment from 'parchment';
+
+// Table Blot
+class TableCell extends Parchment.Block {
+  static blotName = 'table-cell';
+  static tagName = 'TD';
+}
+
+class TableRow extends Parchment.Block {
+  static blotName = 'table-row';
+  static tagName = 'TR';
+}
+
+class Table extends Parchment.Block {
+  static blotName = 'table';
+  static tagName = 'TABLE';
+}
+
+Quill.register('blots/table-cell', TableCell, true);
+Quill.register('blots/table-row', TableRow, true);
+Quill.register('blots/table', Table, true);
+
+// Table Module
+export class TableModule {
+  static moduleName = 'table';
+  static toolName = 'table';
+  quill: Quill;
+  options: { fullWidth?: boolean; customButton?: string };
+
+  constructor(quill: Quill, options: { fullWidth?: boolean; customButton?: string }) {
+    this.quill = quill;
+    this.options = options || {};
+
+    // Initialize toolbar button
+    this.addToolbarHandler();
+
+    // Add context menu
+    this.addContextMenu();
+  }
+
+  addToolbarHandler() {
+    const toolbar = this.quill.getModule('toolbar');
+    if (toolbar) {
+      toolbar.addHandler('table', () => this.createTable({ row: 3, col: 3 }));
+    }
+  }
+
+  createTable(options: { row: number; col: number } = { row: 3, col: 3 }) {
+    const range = this.quill.getSelection();
+    if (!range) return;
+
+    const Delta = Quill.import('delta');
+    const delta = new Delta();
+    const table = document.createElement('table');
+    if (this.options.fullWidth) {
+      table.style.width = '100%';
+    }
+
+    for (let i = 0; i < options.row; i++) {
+      const row = document.createElement('tr');
+      for (let j = 0; j < options.col; j++) {
+        const cell = document.createElement('td');
+        cell.innerHTML = '<br>';
+        row.appendChild(cell);
+      }
+      table.appendChild(row);
+    }
+
+    delta.retain(range.index).insert({ table: table.outerHTML });
+    this.quill.updateContents(delta, Quill.sources.USER);
+    this.quill.setSelection(range.index + 1, Quill.sources.SILENT);
+  }
+
+  insertRow(above: boolean) {
+    const range = this.quill.getSelection();
+    if (!range) return;
+
+    const cell = this.getCellAt(range.index);
+    if (cell) {
+      const row = cell.parentElement as HTMLTableRowElement;
+      const newRow = document.createElement('tr');
+      const cellCount = row.cells.length;
+      for (let i = 0; i < cellCount; i++) {
+        const newCell = document.createElement('td');
+        newCell.innerHTML = '<br>';
+        newRow.appendChild(newCell);
+      }
+
+      if (above) {
+        row.parentElement!.insertBefore(newRow, row);
+      } else {
+        row.parentElement!.insertBefore(newRow, row.nextSibling);
+      }
+    }
+  }
+
+  insertColumn(left: boolean) {
+    const range = this.quill.getSelection();
+    if (!range) return;
+
+    const cell = this.getCellAt(range.index);
+    if (cell) {
+      const row = cell.parentElement as HTMLTableRowElement;
+      const table = row.parentElement as HTMLTableElement;
+      const cellIndex = Array.from(row.cells).indexOf(cell);
+
+      Array.from(table.rows).forEach(row => {
+        const newCell = document.createElement('td');
+        newCell.innerHTML = '<br>';
+        if (left) {
+          row.insertBefore(newCell, row.cells[cellIndex]);
+        } else {
+          row.insertBefore(newCell, row.cells[cellIndex + 1] || null);
+        }
+      });
+    }
+  }
+
+  deleteRow() {
+    const range = this.quill.getSelection();
+    if (!range) return;
+
+    const cell = this.getCellAt(range.index);
+    if (cell) {
+      const row = cell.parentElement as HTMLTableRowElement;
+      row.remove();
+    }
+  }
+
+  deleteColumn() {
+    const range = this.quill.getSelection();
+    if (!range) return;
+
+    const cell = this.getCellAt(range.index);
+    if (cell) {
+      const row = cell.parentElement as HTMLTableRowElement;
+      const table = row.parentElement as HTMLTableElement;
+      const cellIndex = Array.from(row.cells).indexOf(cell);
+
+      Array.from(table.rows).forEach(row => {
+        if (row.cells[cellIndex]) {
+          row.removeChild(row.cells[cellIndex]);
+        }
+      });
+    }
+  }
+
+  deleteTable() {
+    const range = this.quill.getSelection();
+    if (!range) return;
+
+    const cell = this.getCellAt(range.index);
+    if (cell) {
+      const table = cell.closest('table') as HTMLTableElement;
+      if (table) {
+        table.remove();
+      }
+    }
+  }
+
+  getCellAt(index: number): HTMLTableCellElement | null {
+    const [blot] = this.quill.scroll.descendant(Parchment.Blot, index);
+    return blot && (blot.domNode.closest('td') as HTMLTableCellElement);
+  }
+
+  addContextMenu() {
+    this.quill.container.addEventListener('contextmenu', (event: MouseEvent) => {
+      const table = (event.target as HTMLElement).closest('table');
+      if (table) {
+        event.preventDefault();
+        this.showCustomContextMenu(event, this);
+      }
+    });
+  }
+
+  showCustomContextMenu(event: MouseEvent, module: TableModule) {
+    const existingMenu = document.querySelector('.custom-context-menu');
+    if (existingMenu) existingMenu.remove();
+
+    const menu = document.createElement('div');
+    menu.className = 'custom-context-menu';
+    menu.style.left = `${event.clientX}px`;
+    menu.style.top = `${event.clientY}px`;
+
+    const menuItems = [
+      { label: 'Insert Row Above', action: () => module.insertRow(true) },
+      { label: 'Insert Row Below', action: () => module.insertRow(false) },
+      { label: 'Insert Column Left', action: () => module.insertColumn(true) },
+      { label: 'Insert Column Right', action: () => module.insertColumn(false) },
+      { label: 'Delete Row', action: () => module.deleteRow() },
+      { label: 'Delete Column', action: () => module.deleteColumn() },
+      { label: 'Delete Table', action: () => module.deleteTable() }
+    ];
+
+    menuItems.forEach(item => {
+      const menuItem = document.createElement('div');
+      menuItem.textContent = item.label;
+      menuItem.addEventListener('click', () => {
+        item.action();
+        menu.remove();
+      });
+      menu.appendChild(menuItem);
+    });
+
+    document.body.appendChild(menu);
+    document.addEventListener('click', () => menu.remove(), { once: true });
+  }
+}
+
+export default TableModule;
