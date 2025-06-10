@@ -1,0 +1,367 @@
+To use the `quill-better-table` library directly from its library folder (e.g., a pre-built or source folder from the GitHub repository or a downloaded package) instead of installing it via npm (node_modules) in your Angular 2+ application with Quill 1.3.7 and `ngx-quill`, you can achieve this by including the necessary files manually. However, this approach requires careful setup to ensure compatibility, proper registration, and resolution of the previously encountered issues (e.g., `Cannot read property 'pop' of undefined` for backspace and "table not registered"). Since you’re also concerned about using `quill-better-table` with Quill 1.3.7, I’ll address how to integrate it using a library folder while fixing the backspace issue and ensuring English labels (as opposed to the Chinese labels issue with `quill1.3.7-table-module`).
+
+### Key Considerations
+- **Library Folder**: By "library folder," I assume you mean the source or built files from the `quill-better-table` repository (e.g., from [GitHub](https://github.com/soccerloway/quill-better-table)) or a downloaded package, typically containing files like `quill-better-table.js` and `quill-better-table.css`.
+- **Challenges**: Using a library folder bypasses npm’s dependency management, so you must manually include JavaScript and CSS files, ensure Quill 1.3.7 compatibility, and patch or configure the module to fix the backspace issue.
+- **Backspace Fix**: The `Cannot read property 'pop' of undefined` error occurs because `quill-better-table` expects `quill.keyboard.bindings['Backspace']`, which is `undefined` in Quill 1.3.7 (it uses `key: 8`). You’ll need to patch the source or override bindings.
+- **Comparison to npm**: Using npm (`node_modules`) is simpler due to automated dependency resolution, but a library folder can work if you prefer manual control or have a custom build.
+
+### Solution: Use `quill-better-table` Library Folder with Quill 1.3.7
+
+#### 1. **Obtain the Library Files**
+Download or clone the `quill-better-table` library files:
+- **GitHub Repository**:
+  - Clone: `git clone https://github.com/soccerloway/quill-better-table.git`
+  - Navigate to the `dist` folder (e.g., `quill-better-table/dist`) for built files:
+    - `quill-better-table.js` (JavaScript)
+    - `quill-better-table.css` (CSS)
+- **npm Package** (Alternative):
+  - Run `npm install quill-better-table@1.2.1` temporarily to get the files, then copy the `dist` folder from `node_modules/quill-better-table`.
+  - Recommended version: `1.2.1` (more likely compatible with Quill 1.3.7 than `1.2.10`).
+- **Place Files**:
+  - Copy `quill-better-table.js` and `quill-better-table.css` to a folder in your Angular project, e.g., `src/assets/quill-better-table/`.
+
+#### 2. **Patch the Library for Backspace Compatibility**
+The backspace error requires modifying `quill-better-table.js` to use `quill.keyboard.bindings[8]` instead of `quill.keyboard.bindings['Backspace']`.
+
+**Steps**:
+1. Open `src/assets/quill-better-table/quill-better-table.js`.
+2. Search for lines like:
+   ```javascript
+   let thisBinding = quill.keyboard.bindings['Backspace'].pop();
+   ```
+3. Replace `'Backspace'` with `8`:
+   ```javascript
+   let thisBinding = quill.keyboard.bindings[8].pop();
+   ```
+4. Save the file.
+
+- **Note**: If you can’t find the exact line, search for `'Backspace'` and replace all instances with `8`. If the file is minified, use a beautifier tool (e.g., [jsbeautifier.org](https://jsbeautifier.org)) to make it readable.
+
+#### 3. **Include Library Files in Angular**
+Add the JavaScript and CSS files to your Angular project.
+
+**angular.json**:
+```json
+"styles": [
+  "src/styles.css",
+  "node_modules/quill/dist/quill.snow.css",
+  "src/assets/quill-better-table/quill-better-table.css"
+],
+"scripts": [
+  "src/assets/quill-better-table/quill-better-table.js"
+]
+```
+
+- **Explanation**:
+  - The `styles` section includes the CSS for `quill-better-table` and Quill’s theme.
+  - The `scripts` section loads `quill-better-table.js` globally, making the `QuillBetterTable` module available.
+
+Rebuild:
+```bash
+ng build
+```
+
+#### 4. **Configure Quill and Register `quill-better-table`**
+Since you’re not using npm, you need to register the `quill-better-table` module manually and configure it to work with `ngx-quill`.
+
+**app.module.ts**:
+```typescript
+import { NgModule } from '@angular/core';
+import { BrowserModule } from '@angular/platform-browser';
+import { QuillModule } from 'ngx-quill';
+import Quill from 'quill';
+
+// Access the globally loaded QuillBetterTable
+declare const QuillBetterTable: any;
+
+// Register quill-better-table
+Quill.register({
+  'modules/better-table': QuillBetterTable
+}, true);
+
+@NgModule({
+  declarations: [AppComponent],
+  imports: [
+    BrowserModule,
+    QuillModule.forRoot({
+      modules: {
+        toolbar: [
+          ['bold', 'italic', 'underline'],
+          [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+          ['link'],
+          ['table'] // Table button
+        ],
+        table: false, // Disable any default table module
+        'better-table': {
+          operationMenu: {
+            items: {
+              unmergeCells: { text: 'Unmerge Cells' }
+            }
+          }
+        },
+        keyboard: {
+          bindings: {
+            backspace: {
+              key: 8, // Fallback fix for backspace
+              handler: () => true
+            },
+            ...QuillBetterTable.keyboardBindings
+          }
+        }
+      },
+      theme: 'snow'
+    })
+  ],
+  bootstrap: [AppComponent]
+})
+export class AppModule {}
+```
+
+- **Key Points**:
+  - `declare const QuillBetterTable: any;` accesses the global `QuillBetterTable` object loaded via the script tag.
+  - `table: false` prevents conflicts with any default table module.
+  - The `backspace` binding is a fallback in case the patch in step 2 is incomplete.
+  - The `toolbar` includes a `'table'` button, which `quill-better-table` uses to trigger table insertion.
+
+#### 5. **Component Setup**
+Update your component to insert tables and verify the module.
+
+**app.component.ts**:
+```typescript
+import { Component, AfterViewInit } from '@angular/core';
+
+@Component({
+  selector: 'app-root',
+  template: `
+    <quill-editor [styles]="{ height: '300px' }"></quill-editor>
+    <button (click)="insertTable()">Insert Table</button>
+  `
+})
+export class AppComponent implements AfterViewInit {
+  private quill: any;
+
+  ngAfterViewInit() {
+    this.quill = document.querySelector('.ql-editor')?.closest('.ql-container')?.['Quill'];
+    if (this.quill) {
+      console.log('Modules:', this.quill.getModules());
+      console.log('Better-table:', this.quill.getModule('better-table'));
+      console.log('Backspace binding:', this.quill.keyboard.bindings[8]);
+    } else {
+      console.error('Quill instance not found');
+    }
+  }
+
+  insertTable() {
+    if (this.quill) {
+      const tableModule = this.quill.getModule('better-table');
+      if (tableModule) {
+        tableModule.insertTable(3, 3); // Insert 3x3 table
+      } else {
+        console.error('Better-table module not registered');
+      }
+    } else {
+      console.error('Quill instance not initialized');
+    }
+  }
+}
+```
+
+#### 6. **Dependencies**
+Ensure Quill and `ngx-quill` are installed:
+```json
+"dependencies": {
+  "quill": "^1.3.7",
+  "ngx-quill": "^14.3.0"
+}
+```
+Install:
+```bash
+npm install
+```
+
+#### 7. **Test and Debug**
+- **Verify Functionality**:
+  - Check that the toolbar table button or custom "Insert Table" button creates a 3x3 table.
+  - Test backspace in table cells to ensure no `Cannot read property 'pop' of undefined` error.
+  - Right-click the table to confirm the context menu uses English labels (e.g., "Insert Row Above").
+- **Debug Issues**:
+  - Check console logs:
+    ```typescript
+    console.log('Better-table:', this.quill.getModule('better-table'));
+    ```
+    - Should return an object.
+  - If "table not registered" occurs, ensure `QuillBetterTable` is available globally (check browser console for script loading errors).
+  - If the backspace error persists, verify the patch or binding override.
+  - If the script fails to load, confirm the path in `angular.json` (`src/assets/quill-better-table/quill-better-table.js`).
+
+#### 8. **Language Settings**
+Unlike `quill1.3.7-table-module`, which had Chinese labels, `quill-better-table` typically uses English for its context menu and UI elements (e.g., "Insert Row Above", "Unmerge Cells"). To confirm:
+- Right-click a table and check the context menu.
+- If non-English labels appear, patch `quill-better-table.js`:
+  1. Search for non-English strings (e.g., Chinese or other languages).
+  2. Replace with English equivalents:
+     ```javascript
+     'Unmerge Cells' // Ensure English
+     'Insert Row Above'
+     'Insert Row Below'
+     // etc.
+     ```
+  3. Save and rebuild.
+
+#### 9. **Comparison with `quill1.3.7-table-module`**
+| **Aspect**                       | **quill-better-table (Library Folder)**                     | **quill1.3.7-table-module**                        |
+|----------------------------------|------------------------------------------------------------|--------------------------------------------------|
+| **Setup**                        | Manual (copy files, patch backspace)                        | npm install, patch or custom menu for English    |
+| **Compatibility with Quill 1.3.7**| Partial (needs patch or older version)                     | Full (designed for 1.3.7)                        |
+| **Backspace Issue**              | Requires patch for `key: 8` or binding override            | No issues (binding included as precaution)       |
+| **Language**                     | English by default (verify)                                | Chinese default (needs patching or custom menu)  |
+| **Features**                     | Advanced (cell merging, rich context menu)                 | Basic (row/column operations, full-width tables) |
+| **Maintenance**                  | Manual updates from library folder                         | npm updates (last update 7 months ago)           |
+
+**Recommendation**:
+- **Use `quill-better-table`** if you need advanced features (e.g., cell merging) and prefer manual control over dependencies. It likely avoids the Chinese label issue, but requires patching for backspace compatibility.
+- **Use `quill1.3.7-table-module`** if you want a module designed for Quill 1.3.7 and are okay with implementing a custom English context menu (as provided previously) or patching for English labels. It’s simpler to set up via npm but less feature-rich.
+
+#### 10. **Alternative: npm Installation**
+If the library folder approach is too complex, revert to installing `quill-better-table` via npm with the same patch or binding fix:
+```bash
+npm install quill-better-table@1.2.1
+```
+Use the configuration from the previous response (step 9 of the prior answer).
+
+#### 11. **Complete Example**
+**angular.json**:
+```json
+"styles": [
+  "src/styles.css",
+  "node_modules/quill/dist/quill.snow.css",
+  "src/assets/quill-better-table/quill-better-table.css"
+],
+"scripts": [
+  "src/assets/quill-better-table/quill-better-table.js"
+]
+```
+
+**app.module.ts**:
+```typescript
+import { NgModule } from '@angular/core';
+import { BrowserModule } from '@angular/platform-browser';
+import { QuillModule } from 'ngx-quill';
+import Quill from 'quill';
+
+declare const QuillBetterTable: any;
+
+Quill.register({
+  'modules/better-table': QuillBetterTable
+}, true);
+
+@NgModule({
+  declarations: [AppComponent],
+  imports: [
+    BrowserModule,
+    QuillModule.forRoot({
+      modules: {
+        toolbar: [
+          ['bold', 'italic', 'underline'],
+          [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+          ['link'],
+          ['table']
+        ],
+        table: false,
+        'better-table': {
+          operationMenu: {
+            items: {
+              unmergeCells: { text: 'Unmerge Cells' }
+            }
+          }
+        },
+        keyboard: {
+          bindings: {
+            backspace: {
+              key: 8,
+              handler: () => true
+            },
+            ...QuillBetterTable.keyboardBindings
+          }
+        }
+      },
+      theme: 'snow'
+    })
+  ],
+  bootstrap: [AppComponent]
+})
+export class AppModule {}
+```
+
+**app.component.ts**:
+```typescript
+import { Component, AfterViewInit } from '@angular/core';
+
+@Component({
+  selector: 'app-root',
+  template: `
+    <quill-editor [styles]="{ height: '300px' }"></quill-editor>
+    <button (click)="insertTable()">Insert Table</button>
+  `
+})
+export class AppComponent implements AfterViewInit {
+  private quill: any;
+
+  ngAfterViewInit() {
+    this.quill = document.querySelector('.ql-editor')?.closest('.ql-container')?.['Quill'];
+    if (this.quill) {
+      console.log('Modules:', this.quill.getModules());
+      console.log('Better-table:', this.quill.getModule('better-table'));
+      console.log('Backspace binding:', this.quill.keyboard.bindings[8]);
+    } else {
+      console.error('Quill instance not found');
+    }
+  }
+
+  insertTable() {
+    if (this.quill) {
+      const tableModule = this.quill.getModule('better-table');
+      if (tableModule) {
+        tableModule.insertTable(3, 3);
+      } else {
+        console.error('Better-table module not registered');
+      }
+    } else {
+      console.error('Quill instance not initialized');
+    }
+  }
+}
+```
+
+#### 12. **Troubleshooting**
+- **Script Not Loading**:
+  - Check the browser console for errors loading `quill-better-table.js`.
+  - Verify the path in `angular.json`.
+- **Backspace Error**:
+  - Ensure the patch in step 2 or the `backspace` binding is applied.
+  - Log `this.quill.keyboard.bindings[8]`.
+- **"Table not registered"**:
+  - Confirm `QuillBetterTable` is defined globally (check browser console).
+  - Ensure `Quill.register` is called before `QuillModule.forRoot`.
+- **Language Issues**:
+  - If non-English labels appear, patch `quill-better-table.js` for English strings.
+- **Console Logs**:
+  - Share:
+    ```typescript
+    console.log('Modules:', this.quill.getModules());
+    console.log('Better-table:', this.quill.getModule('better-table'));
+    ```
+
+#### 13. **Next Steps**
+1. Copy `quill-better-table` files to `src/assets/quill-better-table` and patch `quill-better-table.js` for backspace.
+2. Implement the provided configuration.
+3. Test table insertion, backspace, and context menu language.
+4. If issues persist, share:
+   - Full error stack traces.
+   - Output of `npm list quill ngx-quill`.
+   - Console logs from `ngAfterViewInit`.
+   - Confirmation of `quill-better-table` version (e.g., check `package.json` in the library folder).
+5. Consider reverting to npm installation or sticking with `quill1.3.7-table-module` with the English custom menu if this approach is too complex.
+
+Using `quill-better-table` from a library folder is viable but requires manual setup and patching. It offers advanced features and likely English labels, making it a good alternative to `quill1.3.7-table-module`. Let me know the results or provide details for further assistance!
