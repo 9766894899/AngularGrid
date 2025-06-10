@@ -1,22 +1,26 @@
-import Quill, { QuillOptionsStatic } from 'quill';
-import Parchment from 'parchment';
+import Quill from 'quill';
 
-// Table Blot
-class TableCell extends Parchment.Block {
+// Import Parchment blots via Quill
+const Block = Quill.import('blots/block');
+const Parchment = Quill.import('parchment');
+
+// Define Table Blots
+class TableCell extends Block {
   static blotName = 'table-cell';
   static tagName = 'TD';
 }
 
-class TableRow extends Parchment.Block {
+class TableRow extends Block {
   static blotName = 'table-row';
   static tagName = 'TR';
 }
 
-class Table extends Parchment.Block {
+class Table extends Block {
   static blotName = 'table';
   static tagName = 'TABLE';
 }
 
+// Register blots
 Quill.register('blots/table-cell', TableCell, true);
 Quill.register('blots/table-row', TableRow, true);
 Quill.register('blots/table', Table, true);
@@ -25,10 +29,10 @@ Quill.register('blots/table', Table, true);
 export class TableModule {
   static moduleName = 'table';
   static toolName = 'table';
-  quill: Quill;
+  quill: any; // Use any to avoid strict type issues with Quill
   options: { fullWidth?: boolean; customButton?: string };
 
-  constructor(quill: Quill, options: { fullWidth?: boolean; customButton?: string }) {
+  constructor(quill: any, options: { fullWidth?: boolean; customButton?: string }) {
     this.quill = quill;
     this.options = options || {};
 
@@ -42,16 +46,15 @@ export class TableModule {
   addToolbarHandler() {
     const toolbar = this.quill.getModule('toolbar');
     if (toolbar) {
-      toolbar.addHandler('table', () => this.createTable({ row: 3, col: 3 }));
+      toolbar.addHandler('table', this.createTable.bind(this));
     }
   }
 
   createTable(options: { row: number; col: number } = { row: 3, col: 3 }) {
     const range = this.quill.getSelection();
-    if (!range) return;
+    if (range === null) return;
 
-    const Delta = Quill.import('delta');
-    const delta = new Delta();
+    const delta = new Parchment.Delta();
     const table = document.createElement('table');
     if (this.options.fullWidth) {
       table.style.width = '100%';
@@ -67,7 +70,7 @@ export class TableModule {
       table.appendChild(row);
     }
 
-    delta.retain(range.index).insert({ table: table.outerHTML });
+    delta.retain(range.index).insert('\n', { table: true });
     this.quill.updateContents(delta, Quill.sources.USER);
     this.quill.setSelection(range.index + 1, Quill.sources.SILENT);
   }
@@ -78,9 +81,9 @@ export class TableModule {
 
     const cell = this.getCellAt(range.index);
     if (cell) {
-      const row = cell.parentElement as HTMLTableRowElement;
+      const row = cell.parentElement as HTMLElement;
       const newRow = document.createElement('tr');
-      const cellCount = row.cells.length;
+      const cellCount = row.children.length;
       for (let i = 0; i < cellCount; i++) {
         const newCell = document.createElement('td');
         newCell.innerHTML = '<br>';
@@ -101,17 +104,17 @@ export class TableModule {
 
     const cell = this.getCellAt(range.index);
     if (cell) {
-      const row = cell.parentElement as HTMLTableRowElement;
-      const table = row.parentElement as HTMLTableElement;
-      const cellIndex = Array.from(row.cells).indexOf(cell);
+      const row = cell.parentElement as HTMLElement;
+      const table = row.parentElement as HTMLElement;
+      const cellIndex = Array.from(row.children).indexOf(cell);
 
-      Array.from(table.rows).forEach(row => {
+      Array.from(table.children).forEach((row: HTMLElement) => {
         const newCell = document.createElement('td');
         newCell.innerHTML = '<br>';
         if (left) {
-          row.insertBefore(newCell, row.cells[cellIndex]);
+          row.insertBefore(newCell, row.children[cellIndex]);
         } else {
-          row.insertBefore(newCell, row.cells[cellIndex + 1] || null);
+          row.insertBefore(newCell, row.children[cellIndex + 1]);
         }
       });
     }
@@ -123,7 +126,7 @@ export class TableModule {
 
     const cell = this.getCellAt(range.index);
     if (cell) {
-      const row = cell.parentElement as HTMLTableRowElement;
+      const row = cell.parentElement as HTMLElement;
       row.remove();
     }
   }
@@ -134,14 +137,12 @@ export class TableModule {
 
     const cell = this.getCellAt(range.index);
     if (cell) {
-      const row = cell.parentElement as HTMLTableRowElement;
-      const table = row.parentElement as HTMLTableElement;
-      const cellIndex = Array.from(row.cells).indexOf(cell);
+      const row = cell.parentElement as HTMLElement;
+      const table = row.parentElement as HTMLElement;
+      const cellIndex = Array.from(row.children).indexOf(cell);
 
-      Array.from(table.rows).forEach(row => {
-        if (row.cells[cellIndex]) {
-          row.removeChild(row.cells[cellIndex]);
-        }
+      Array.from(table.children).forEach((row: HTMLElement) => {
+        row.removeChild(row.children[cellIndex]);
       });
     }
   }
@@ -152,16 +153,16 @@ export class TableModule {
 
     const cell = this.getCellAt(range.index);
     if (cell) {
-      const table = cell.closest('table') as HTMLTableElement;
+      const table = cell.closest('table');
       if (table) {
         table.remove();
       }
     }
   }
 
-  getCellAt(index: number): HTMLTableCellElement | null {
+  getCellAt(index: number): HTMLElement | null {
     const [blot] = this.quill.scroll.descendant(Parchment.Blot, index);
-    return blot && (blot.domNode.closest('td') as HTMLTableCellElement);
+    return blot && blot.domNode.closest('td');
   }
 
   addContextMenu() {
