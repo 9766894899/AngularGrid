@@ -1,0 +1,649 @@
+To integrate `quill1.3.7-table-module` into an Angular 2+ application with Quill 1.3.7 and `ngx-quill`, customize the language to English (instead of the default Chinese), and customize the CSS for the table module, follow the detailed steps below. This guide addresses your previous issues (e.g., "table not registered", backspace errors with `quill-better-table`, and Chinese labels) and provides a complete setup for a robust table implementation in your Angular app.
+
+### Prerequisites
+- **Angular Version**: Angular 2+ (tested with Angular 8–17, compatible with `ngx-quill@14.3.0`).
+- **Quill Version**: 1.3.7 (stable, no native table support).
+- **Module**: `quill1.3.7-table-module@1.4.2` (designed for Quill 1.3.7).
+- **Goal**: Integrate the table module, ensure English labels for all UI elements (toolbar, context menu), and customize CSS for table styling.
+
+### Steps to Integrate, Customize Language, and CSS
+
+#### 1. **Install Dependencies**
+Update your `package.json` to include the required dependencies:
+```json
+"dependencies": {
+  "quill": "^1.3.7",
+  "ngx-quill": "^14.3.0",
+  "quill1.3.7-table-module": "^1.4.2"
+}
+```
+Install:
+```bash
+npm install
+```
+
+- **Verify**:
+  ```bash
+  npm list quill ngx-quill quill1.3.7-table-module
+  ```
+  Expected output:
+  ```
+  ├── quill@1.3.7
+  ├── ngx-quill@14.3.0
+  └── quill1.3.7-table-module@1.4.2
+  ```
+
+#### 2. **Register `quill1.3.7-table-module`**
+Register the module with Quill and configure it to use English for the toolbar button.
+
+**app.module.ts**:
+```typescript
+import { NgModule } from '@angular/core';
+import { BrowserModule } from '@angular/platform-browser';
+import { QuillModule } from 'ngx-quill';
+import Quill from 'quill';
+import TableHandler, { rewirteFormats } from 'quill1.3.7-table-module';
+
+// Register the module
+Quill.register({ [`modules/${TableHandler.moduleName}`]: TableHandler }, true);
+
+// Rewrite formats to handle Quill native formats (e.g., lists in cells)
+rewirteFormats();
+
+@NgModule({
+  declarations: [AppComponent],
+  imports: [
+    BrowserModule,
+    QuillModule.forRoot({
+      modules: {
+        toolbar: [
+          [TableHandler.toolName], // Table button
+          ['bold', 'italic', 'underline'],
+          [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+          ['link']
+        ],
+        [TableHandler.moduleName]: {
+          fullWidth: true, // Full-width tables
+          customButton: 'Insert Table' // English toolbar button label
+        },
+        keyboard: {
+          bindings: {
+            backspace: {
+              key: 8,
+              handler: () => true // Prevent backspace issues
+            }
+          }
+        }
+      },
+      theme: 'snow'
+    })
+  ],
+  bootstrap: [AppComponent]
+})
+export class AppModule {}
+```
+
+- **Key Points**:
+  - `TableHandler.moduleName` is typically `'table'`.
+  - `customButton: 'Insert Table'` sets the toolbar button to English.
+  - `rewirteFormats()` ensures proper rendering of formats in table cells.
+  - The `backspace` binding prevents potential errors like those seen with `quill-better-table`.
+
+#### 3. **Component Setup with Custom Context Menu**
+Implement a custom context menu to display English labels for table operations (e.g., "Insert Row Above"), as the default context menu in `quill1.3.7-table-module` uses Chinese.
+
+**app.component.ts**:
+```typescript
+import { Component, AfterViewInit } from '@angular/core';
+import TableHandler from 'quill1.3.7-table-module';
+
+@Component({
+  selector: 'app-root',
+  template: `
+    <quill-editor [styles]="{ height: '300px' }"></quill-editor>
+    <button (click)="insertTable()">Insert Table</button>
+  `,
+  styles: [`
+    .custom-context-menu {
+      position: absolute;
+      background: #fff;
+      border: 1px solid #ccc;
+      padding: 5px;
+      z-index: 1000;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+      font-family: Arial, sans-serif;
+      font-size: 14px;
+    }
+    .custom-context-menu div {
+      padding: 5px 10px;
+      cursor: pointer;
+    }
+    .custom-context-menu div:hover {
+      background-color: #e6f3ff;
+    }
+  `]
+})
+export class AppComponent implements AfterViewInit {
+  private quill: any;
+
+  ngAfterViewInit() {
+    this.quill = document.querySelector('.ql-editor')?.closest('.ql-container')?.['Quill'];
+    if (this.quill) {
+      const tableModule = this.quill.getModule(TableHandler.moduleName);
+      if (tableModule) {
+        console.log('Modules:', this.quill.getModules());
+        console.log('Table module:', tableModule);
+        console.log('Backspace binding:', this.quill.keyboard.bindings[8]);
+        // Custom context menu
+        this.quill.container.addEventListener('contextmenu', (event: MouseEvent) => {
+          const table = event.target.closest('table');
+          if (table) {
+            event.preventDefault();
+            this.showCustomContextMenu(event, tableModule);
+          }
+        });
+      } else {
+        console.error('Table module not registered');
+      }
+    } else {
+      console.error('Quill instance not found');
+    }
+  }
+
+  insertTable() {
+    if (this.quill) {
+      const tableModule = this.quill.getModule(TableHandler.moduleName);
+      if (tableModule) {
+        tableModule.create({ row: 3, col: 3 }); // Insert 3x3 table
+      } else {
+        console.error('Table module not registered');
+      }
+    }
+  }
+
+  showCustomContextMenu(event: MouseEvent, tableModule: any) {
+    const existingMenu = document.querySelector('.custom-context-menu');
+    if (existingMenu) existingMenu.remove();
+
+    const menu = document.createElement('div');
+    menu.className = 'custom-context-menu';
+    menu.style.left = `${event.clientX}px`;
+    menu.style.top = `${event.clientY}px`;
+
+    // English menu items (adjust method names based on API)
+    const menuItems = [
+      { label: 'Insert Row Above', action: () => tableModule.insertRow(true) },
+      { label: 'Insert Row Below', action: () => tableModule.insertRow(false) },
+      { label: 'Insert Column Left', action: () => tableModule.insertColumn(true) },
+      { label: 'Insert Column Right', action: () => tableModule.insertColumn(false) },
+      { label: 'Delete Row', action: () => tableModule.deleteRow() },
+      { label: 'Delete Column', action: () => tableModule.deleteColumn() },
+      { label: 'Delete Table', action: () => tableModule.deleteTable() }
+    ];
+
+    menuItems.forEach(item => {
+      const menuItem = document.createElement('div');
+      menuItem.textContent = item.label;
+      menuItem.addEventListener('click', () => {
+        item.action();
+        menu.remove();
+      });
+      menu.appendChild(menuItem);
+    });
+
+    document.body.appendChild(menu);
+    document.addEventListener('click', () => menu.remove(), { once: true });
+  }
+}
+```
+
+- **Key Points**:
+  - The custom context menu overrides the default Chinese menu with English labels.
+  - Method names (`insertRow(true)`, etc.) are based on the module’s API. If they differ (e.g., `insertRowAbove`), check `node_modules/quill1.3.7-table-module/dist/index.js` for the correct names.
+  - Inline CSS styles the context menu for better appearance.
+
+#### 4. **Customize CSS**
+Customize the table and context menu appearance by overriding the default `quill1.3.7-table-module` styles or adding new ones.
+
+**Option 1: Override Default CSS**
+- Include the module’s CSS and add custom styles in your project.
+
+**angular.json**:
+```json
+"styles": [
+  "src/styles.css",
+  "node_modules/quill/dist/quill.snow.css",
+  "node_modules/quill1.3.7-table-module/dist/index.css"
+]
+```
+
+**src/styles.css** (or `app.component.css`):
+```css
+/* Customize table styles */
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 10px 0;
+}
+
+td, th {
+  border: 2px solid #007bff !important; /* Blue borders */
+  padding: 8px;
+  text-align: left;
+  background-color: #f9f9f9; /* Light gray background */
+}
+
+th {
+  background-color: #007bff; /* Blue header */
+  color: white;
+  font-weight: bold;
+}
+
+/* Hover effect for table cells */
+td:hover {
+  background-color: #e6f3ff; /* Light blue on hover */
+}
+
+/* Customize toolbar button */
+.ql-toolbar .ql-table {
+  background-color: #007bff;
+  color: white;
+  border-radius: 4px;
+  padding: 5px;
+}
+
+.ql-toolbar .ql-table:hover {
+  background-color: #0056b3; /* Darker blue on hover */
+}
+
+/* Ensure context menu styles (if not inline in component) */
+.custom-context-menu {
+  position: absolute;
+  background: #fff;
+  border: 1px solid #ccc;
+  padding: 5px;
+  z-index: 1000;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  font-family: Arial, sans-serif;
+  font-size: 14px;
+}
+
+.custom-context-menu div {
+  padding: 5px 10px;
+  cursor: pointer;
+}
+
+.custom-context-menu div:hover {
+  background-color: #e6f3ff;
+}
+```
+
+- **Changes**:
+  - Tables have blue borders, light gray cells, and blue headers.
+  - Cells highlight on hover.
+  - The toolbar table button is styled with a blue background.
+  - The context menu matches the component’s inline styles for consistency.
+
+**Option 2: Create Custom CSS**
+- If you want to replace the module’s CSS entirely, copy `node_modules/quill1.3.7-table-module/dist/index.css` to `src/assets/custom-quill-table.css`, modify it, and include it instead.
+
+**Modified angular.json**:
+```json
+"styles": [
+  "src/styles.css",
+  "node_modules/quill/dist/quill.snow.css",
+  "src/assets/custom-quill-table.css"
+]
+```
+
+**src/assets/custom-quill-table.css** (example):
+```css
+/* Example custom table styles */
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 10px 0;
+}
+
+td, th {
+  border: 2px solid #28a745; /* Green borders */
+  padding: 10px;
+  text-align: left;
+  background-color: #fff;
+}
+
+th {
+  background-color: #28a745; /* Green header */
+  color: white;
+}
+
+td:hover {
+  background-color: #d4edda; /* Light green on hover */
+}
+
+/* Context menu (if needed) */
+.custom-context-menu {
+  /* Same as above */
+}
+```
+
+Rebuild:
+```bash
+ng build
+```
+
+#### 5. **Patch Source Code for English Labels (Optional)**
+If the custom context menu doesn’t fully replace the default menu or other UI elements (e.g., tooltips) remain in Chinese, patch the module’s source code.
+
+**Steps**:
+1. Open `node_modules/quill1.3.7-table-module/dist/index.js`.
+2. Search for Chinese strings (e.g., `插入表格`, `上插入行`):
+   - `插入表格` → Insert Table
+   - `上插入行` → Insert Row Above
+   - `下插入行` → Insert Row Below
+   - `左插入列` → Insert Column Left
+   - `右插入列` → Insert Column Right
+   - `删除行` → Delete Row
+   - `删除列` → Delete Column
+   - `删除表格` → Delete Table
+3. Replace with English:
+   ```javascript
+   '插入表格' -> 'Insert Table'
+   '上插入行' -> 'Insert Row Above'
+   // etc.
+   ```
+4. Save and rebuild:
+   ```bash
+   ng build
+   ```
+
+**Alternative: Fork the Module**:
+- Copy `node_modules/quill1.3.7-table-module` to `src/assets/quill-table-module`.
+- Modify `index.js` as above.
+- Update `package.json`:
+  ```json
+  "quill1.3.7-table-module": "file:./src/assets/quill-table-module"
+  ```
+- Install:
+  ```bash
+  npm install
+  ```
+
+#### 6. **Verify API Methods**
+The context menu uses methods like `insertRow(true)`. Confirm these by inspecting the module’s API:
+- Open `node_modules/quill1.3.7-table-module/dist/index.js`.
+- Search for context menu or table operation functions (e.g., `insertRowAbove`).
+- Update `menuItems` in `showCustomContextMenu` if needed:
+  ```typescript
+  const menuItems = [
+    { label: 'Insert Row Above', action: () => tableModule.insertRowAbove() },
+    // ...
+  ];
+  ```
+
+#### 7. **Test and Debug**
+- **Verify English Labels**:
+  - Toolbar button should show "Insert Table".
+  - Right-click a table to confirm the custom context menu shows English labels (e.g., "Insert Row Above").
+  - If patched, check other UI elements (e.g., tooltips).
+- **Verify CSS**:
+  - Tables should have customized borders, backgrounds, and hover effects.
+  - The toolbar button and context menu should reflect custom styles.
+- **Test Functionality**:
+  - Insert a 3x3 table via the toolbar or button.
+  - Use context menu options.
+  - Test backspace in table cells (no errors expected).
+- **Debug**:
+  - Console logs:
+    ```typescript
+    console.log('Table module:', this.quill.getModule(TableHandler.moduleName));
+    ```
+    - Should return an object.
+  - If "table not registered":
+    - Ensure `Quill.register` is before `QuillModule.forRoot`.
+    - Verify `npm list quill1.3.7-table-module`.
+  - If Chinese labels persist:
+    - Confirm `event.preventDefault()` in the context menu handler.
+    - Patch `index.js` (step 5).
+
+#### 8. **Complete Example**
+**package.json**:
+```json
+"dependencies": {
+  "quill": "^1.3.7",
+  "ngx-quill": "^14.3.0",
+  "quill1.3.7-table-module": "^1.4.2"
+}
+```
+
+**angular.json**:
+```json
+"styles": [
+  "src/styles.css",
+  "node_modules/quill/dist/quill.snow.css",
+  "node_modules/quill1.3.7-table-module/dist/index.css"
+]
+```
+
+**app.module.ts**:
+```typescript
+import { NgModule } from '@angular/core';
+import { BrowserModule } from '@angular/platform-browser';
+import { QuillModule } from 'ngx-quill';
+import Quill from 'quill';
+import TableHandler, { rewirteFormats } from 'quill1.3.7-table-module';
+
+Quill.register({ [`modules/${TableHandler.moduleName}`]: TableHandler }, true);
+rewirteFormats();
+
+@NgModule({
+  declarations: [AppComponent],
+  imports: [
+    BrowserModule,
+    QuillModule.forRoot({
+      modules: {
+        toolbar: [
+          [TableHandler.toolName],
+          ['bold', 'italic', 'underline'],
+          [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+          ['link']
+        ],
+        [TableHandler.moduleName]: {
+          fullWidth: true,
+          customButton: 'Insert Table'
+        },
+        keyboard: {
+          bindings: {
+            backspace: {
+              key: 8,
+              handler: () => true
+            }
+          }
+        }
+      },
+      theme: 'snow'
+    })
+  ],
+  bootstrap: [AppComponent]
+})
+export class AppModule {}
+```
+
+**app.component.ts**:
+```typescript
+import { Component, AfterViewInit } from '@angular/core';
+import TableHandler from 'quill1.3.7-table-module';
+
+@Component({
+  selector: 'app-root',
+  template: `
+    <quill-editor [styles]="{ height: '300px' }"></quill-editor>
+    <button (click)="insertTable()">Insert Table</button>
+  `,
+  styles: [`
+    .custom-context-menu {
+      position: absolute;
+      background: #fff;
+      border: 1px solid #ccc;
+      padding: 5px;
+      z-index: 1000;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+      font-family: Arial, sans-serif;
+      font-size: 14px;
+    }
+    .custom-context-menu div {
+      padding: 5px 10px;
+      cursor: pointer;
+    }
+    .custom-context-menu div:hover {
+      background-color: #e6f3ff;
+    }
+  `]
+})
+export class AppComponent implements AfterViewInit {
+  private quill: any;
+
+  ngAfterViewInit() {
+    this.quill = document.querySelector('.ql-editor')?.closest('.ql-container')?.['Quill'];
+    if (this.quill) {
+      const tableModule = this.quill.getModule(TableHandler.moduleName);
+      if (tableModule) {
+        console.log('Modules:', this.quill.getModules());
+        console.log('Table module:', tableModule);
+        console.log('Backspace binding:', this.quill.keyboard.bindings[8]);
+        this.quill.container.addEventListener('contextmenu', (event: MouseEvent) => {
+          const table = event.target.closest('table');
+          if (table) {
+            event.preventDefault();
+            this.showCustomContextMenu(event, tableModule);
+          }
+        });
+      } else {
+        console.error('Table module not registered');
+      }
+    } else {
+      console.error('Quill instance not found');
+    }
+  }
+
+  insertTable() {
+    if (this.quill) {
+      const tableModule = this.quill.getModule(TableHandler.moduleName);
+      if (tableModule) {
+        tableModule.create({ row: 3, col: 3 });
+      } else {
+        console.error('Table module not registered');
+      }
+    }
+  }
+
+  showCustomContextMenu(event: MouseEvent, tableModule: any) {
+    const existingMenu = document.querySelector('.custom-context-menu');
+    if (existingMenu) existingMenu.remove();
+
+    const menu = document.createElement('div');
+    menu.className = 'custom-context-menu';
+    menu.style.left = `${event.clientX}px`;
+    menu.style.top = `${event.clientY}px`;
+
+    const menuItems = [
+      { label: 'Insert Row Above', action: () => tableModule.insertRow(true) },
+      { label: 'Insert Row Below', action: () => tableModule.insertRow(false) },
+      { label: 'Insert Column Left', action: () => tableModule.insertColumn(true) },
+      { label: 'Insert Column Right', action: () => tableModule.insertColumn(false) },
+      { label: 'Delete Row', action: () => tableModule.deleteRow() },
+      { label: 'Delete Column', action: () => tableModule.deleteColumn() },
+      { label: 'Delete Table', action: () => tableModule.deleteTable() }
+    ];
+
+    menuItems.forEach(item => {
+      const menuItem = document.createElement('div');
+      menuItem.textContent = item.label;
+      menuItem.addEventListener('click', () => {
+        item.action();
+        menu.remove();
+      });
+      menu.appendChild(menuItem);
+    });
+
+    document.body.appendChild(menu);
+    document.addEventListener('click', () => menu.remove(), { once: true });
+  }
+}
+```
+
+**src/styles.css**:
+```css
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 10px 0;
+}
+
+td, th {
+  border: 2px solid #007bff !important;
+  padding: 8px;
+  text-align: left;
+  background-color: #f9f9f9;
+}
+
+th {
+  background-color: #007bff;
+  color: white;
+  font-weight: bold;
+}
+
+td:hover {
+  background-color: #e6f3ff;
+}
+
+.ql-toolbar .ql-table {
+  background-color: #007bff;
+  color: white;
+  border-radius: 4px;
+  padding: 5px;
+}
+
+.ql-toolbar .ql-table:hover {
+  background-color: #0056b3;
+}
+```
+
+#### 9. **Troubleshooting**
+- **"Table not registered"**:
+  - Ensure `Quill.register` is before `QuillModule.forRoot`.
+  - Verify `npm list quill1.3.7-table-module` shows `1.4.2`.
+- **Chinese Labels Persist**:
+  - Confirm `event.preventDefault()` in the context menu handler.
+  - Patch `index.js` (step 5).
+- **CSS Not Applied**:
+  - Check browser dev tools for conflicting styles (increase specificity with `!important` if needed).
+  - Ensure `angular.json` includes the correct CSS files.
+- **Backspace Issues**:
+  - The `backspace` binding should prevent errors. Log `this.quill.keyboard.bindings[8]`.
+- **Console Logs**:
+  - Share:
+    ```typescript
+    console.log('Modules:', this.quill.getModules());
+    console.log('Table module:', this.quill.getModule(TableHandler.moduleName));
+    ```
+
+#### 10. **Comparison with `quill-better-table`**
+| **Aspect**                       | **quill1.3.7-table-module**                        | **quill-better-table**                              |
+|----------------------------------|--------------------------------------------------|----------------------------------------------------|
+| **Compatibility**                | Full (designed for Quill 1.3.7)                  | Partial (needs patch for backspace)                |
+| **Language**                     | Chinese default (custom menu or patch for English)| English default                                    |
+| **CSS Customization**            | Easy (override or custom CSS)                    | Easy (similar process)                             |
+| **Features**                     | Basic (row/column operations)                    | Advanced (cell merging, rich context menu)         |
+| **Setup**                        | npm, simpler                                     | npm or library folder, requires patching           |
+
+**Recommendation**: Stick with `quill1.3.7-table-module` for simplicity and compatibility, using the custom context menu for English. If you need advanced features, consider `quill-better-table` with the backspace patch (see previous response).
+
+#### 11. **Next Steps**
+1. Implement the above setup.
+2. Test table insertion, context menu (English), and CSS styling.
+3. If issues arise, share:
+   - Error stack traces.
+   - `npm list quill ngx-quill quill1.3.7-table-module` output.
+   - Console logs from `ngAfterViewInit`.
+   - Screenshots of UI (e.g., C
