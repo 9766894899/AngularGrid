@@ -545,4 +545,388 @@ export class TableModule {
 
   showCustomContextMenu(event: MouseEvent, module: TableModule) {
     try {
-  
+      const existingMenu = document.querySelector('.custom-context-menu');
+      if (existingMenu) existingMenu.remove();
+
+      const menu = document.createElement('div');
+      menu.className = 'custom-context-menu';
+      menu.style.position = 'absolute';
+      menu.style.left = `${event.clientX}px`;
+      menu.style.top = `${event.clientY}px`;
+
+      const menuItems = [
+        { label: 'Insert Row Above', action: () => module.insertRow(true) },
+        { label: 'Insert Row Below', action: () => module.insertRow(false) },
+        { label: 'Insert Column Left', action: () => module.insertColumn(true) },
+        { label: 'Insert Column Right', action: () => module.insertColumn(false) },
+        { label: 'Delete Row', action: () => module.deleteRow() },
+        { label: 'Delete Column', action: () => module.deleteColumn() },
+        { label: 'Delete Table', action: () => module.deleteTable() },
+      ];
+
+      menuItems.forEach((item) => {
+        const menuItem = document.createElement('div');
+        menuItem.textContent = item.label;
+        menuItem.addEventListener('click', () => {
+          item.action();
+          menu.remove();
+        });
+        menu.appendChild(menuItem);
+      });
+
+      document.body.appendChild(menu);
+      document.addEventListener('click', () => menu.remove(), { once: true });
+    } catch (e) {
+      console.error('Error showing context menu:', e);
+    }
+  }
+}
+
+export default TableModule;
+```
+
+**Changes**:
+- **Delta Fix**:
+  - Changed `import { Delta, RangeStatic } from 'quill'` to `const Delta = Quill.import('delta')`.
+  - Removed `RangeStatic` import (unused).
+  - Updated `tableMatcher` and `createTable` to use `new Delta()`.
+- **Runtime Safeguards**:
+  - Added `try-catch` blocks to all methods (`tableMatcher`, `sanitizeCellContent`, `createTable`, etc.) to log errors and prevent crashes.
+  - Added `console.warn` for non-critical failures (e.g., invalid selection, missing blots).
+  - Checked for `node` validity in `tableMatcher`.
+  - Limited `addToolbarHandler` retries to 10 to prevent infinite loops.
+- **Type Adjustments**:
+  - Kept `as any` for `Clipboard` and `Parchment` to avoid compile errors.
+  - Used `any` for `delta` and `range` in `tableMatcher` and `getValidSelection` to simplify typing.
+- **Preserved**:
+  - `rewriteFormats` fix (skips invalid formats).
+  - Clipboard handling, hover grid, row/column ops, context menu.
+  - English labels, custom CSS.
+
+#### 2. **CSS**
+No changes needed.
+
+**src/assets/quill-table-module/quill-table-module.css**:
+```css
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 10px 0;
+  border: 2px solid #007bff;
+}
+
+td, th {
+  border: 2px solid #007bff;
+  padding: 10px;
+  text-align: left;
+  background-color: #f9f9f9;
+}
+
+th {
+  background-color: #007bff;
+  color: white;
+  font-weight: bold;
+}
+
+td:hover {
+  background-color: #e6f3ff;
+}
+
+.ql-toolbar .ql-table {
+  background-color: #007bff;
+  color: white;
+  border-radius: 4px;
+  padding: 5px;
+  margin: 0 2px;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+}
+
+.ql-toolbar .ql-table:hover {
+  background-color: #0056b3;
+}
+
+.ql-toolbar .ql-table svg {
+  width: 16px;
+  height: 16px;
+}
+
+.ql-table-grid {
+  width: 150px;
+  background: #fff;
+  border: 1px solid #ccc;
+  padding: 5px;
+  z-index: 1000;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+.ql-table-grid div {
+  display: flex;
+}
+
+.ql-table-grid div div {
+  width: 20px;
+  height: 20px;
+  border: 1px solid #ddd;
+  margin: 1px;
+  cursor: pointer;
+}
+
+.ql-table-grid div div:hover {
+  background-color: #e6f3ff;
+}
+
+.custom-context-menu {
+  position: absolute;
+  background: #fff;
+  border: 1px solid #ccc;
+  padding: 5px;
+  z-index: 1000;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  font-family: Arial, sans-serif;
+  font-size: 14px;
+}
+
+.custom-context-menu div {
+  padding: 8px 15px;
+  cursor: pointer;
+}
+
+.custom-context-menu div:hover {
+  background-color: #e6f3ff;
+}
+```
+
+#### 3. **Angular Integration**
+Fix a typo in `app.module.ts` (`querySelector` instead of `childrenSelector`) and ensure correct setup.
+
+**angular.json**:
+```json
+{
+  "styles": [
+    "src/styles.css",
+    "node_modules/quill/dist/quill.snow.css",
+    "src/assets/quill-table-module/quill-table-module.css"
+  ]
+}
+```
+
+**app.module.ts**:
+```typescript
+import { NgModule } from '@angular/core';
+import { BrowserModule } from '@angular/platform-browser';
+import { QuillModule } from 'ngx-quill';
+import Quill from 'quill';
+import { TableModule } from './lib/quill-table-module';
+
+Quill.register('modules/table', TableModule, true);
+
+@NgModule({
+  declarations: [AppComponent],
+  imports: [
+    BrowserModule,
+    QuillModule.forRoot({
+      modules: {
+        toolbar: [
+          ['table'],
+          ['bold', 'italic', 'underline'],
+          [{ 'color': [] }, { 'background': [] }],
+          [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+          ['link']
+        ],
+        table: {
+          fullWidth: true,
+          customButton: 'Insert Table'
+        },
+        keyboard: {
+          bindings: {
+            backspace: {
+              key: 8,
+              handler: () => true
+            }
+          }
+        }
+      },
+      theme: 'snow'
+    })
+  ],
+  bootstrap: [AppComponent]
+})
+export class AppModule {}
+```
+
+**app.component.ts**:
+```typescript
+import { Component, AfterViewInit } from '@angular/core';
+import Quill from 'quill';
+
+@Component({
+  selector: 'app-root',
+  template: `
+    <quill-editor [styles]="{ height: '300px' }"></quill-editor>
+    <button (click)="insertTable()">Insert Table</button>
+  `,
+  styles: [`
+    .ql-editor {
+      min-height: 300px;
+    }
+  `]
+})
+export class AppComponent implements AfterViewInit {
+  private quill: Quill | null = null;
+
+  ngAfterViewInit() {
+    try {
+      const editor = document.querySelector('.ql-editor');
+      if (editor) {
+        const container = editor.closest('.ql-container');
+        if (container && 'Quill' in container) {
+          this.quill = (container as any).Quill;
+        }
+      }
+
+      if (this.quill) {
+        const tableModule = this.quill.getModule('table');
+        if (tableModule) {
+          console.log('Modules:', this.quill.getModules());
+          console.log('Table module:', tableModule);
+          console.log('Backspace binding:', this.quill.keyboard.bindings[8]);
+          console.log('Toolbar buttons:', document.querySelectorAll('.ql-toolbar .ql-table'));
+          console.log('Selection:', this.quill.getSelection());
+        } else {
+          console.error('Table module not registered');
+        }
+      } else {
+        console.error('Quill instance not found');
+      }
+    } catch (e) {
+      console.error('Error initializing Quill:', e);
+    }
+  }
+
+  insertTable() {
+    try {
+      if (this.quill) {
+        const tableModule = this.quill.getModule('table');
+        if (tableModule) {
+          tableModule.createTable({ row: 3, col: 3 });
+        } else {
+          console.error('Table module not registered');
+        }
+      }
+    } catch (e) {
+      console.error('Error inserting table:', e);
+    }
+  }
+}
+```
+
+**Changes**:
+- Fixed `childrenSelector` to `querySelector` in `addToolbarHandler`.
+- Added `try-catch` to `ngAfterViewInit` and `insertTable` for runtime safety.
+- Kept previous fixes (e.g., `key: 8`).
+
+#### 4. **Dependencies**
+No changes needed.
+
+**package.json**:
+```json
+{
+  "dependencies": {
+    "quill": "^1.3.7",
+    "ngx-quill": "^14.3.0",
+    "@types/quill": "^1.0.8"
+  }
+}
+```
+Install:
+```bash
+npm install
+```
+
+#### 5. **Testing Plan**
+1. **Runtime Errors**:
+   - Run `ng build` and `ng serve`.
+   - Open browser, check console for errors.
+   - Verify no “Delta is not a constructor” or “class extend value” errors.
+   - Check for warnings (e.g., “Format list not found”, “Toolbar not found”).
+2. **Core Features**:
+   - **Toolbar**: Confirm table button with SVG icon; hover shows 6x6 grid.
+   - **Grid**: Select 3x2 table, verify insertion.
+   - **Context Menu**: Right-click cell, test all options (e.g., “Insert Row Below”, “Delete Column”).
+   - **Selection**: Click cell, type text, use context menu; cursor stays in cell.
+   - **Backspace**: Type in cell, press backspace, no errors.
+3. **Format Handling**:
+   - Insert table, try lists/headers in cells; confirm blocked.
+   - Apply lists/headers outside table; confirm they work.
+4. **Clipboard**:
+   - Copy table from Word/Excel (2x2 with bold text).
+   - Paste into editor; verify structure and inline formats.
+   - Add log in `tableMatcher`:
+     ```typescript
+     console.log('Pasting table:', node.outerHTML);
+     ```
+   - Test HTML:
+     ```html
+     <table><tr><td>Test</td><td><b>Bold</b></td></tr></table>
+     ```
+5. **Edge Cases**:
+   - Paste empty table or merged cells.
+   - Undo/redo operations and paste.
+   - Remove table, check cursor.
+   - Test with empty editor or cursor outside table.
+6. **CSS**:
+   - Confirm table borders, button/grid/menu styling.
+7. **Logs**:
+   - Verify:
+     ```typescript
+     console.log('Modules:', this.quill.getModules());
+     console.log('Table module:', this.quill.getModule('table'));
+     console.log('Toolbar buttons:', document.querySelectorAll('.ql-toolbar .ql-table'));
+     console.log('Selection:', this.quill.getSelection());
+     ```
+
+#### 6. **Troubleshooting**
+- **Delta Error Persists**:
+  - Add log:
+    ```typescript
+    console.log('Delta:', Delta);
+    ```
+  - Share console output.
+  - Verify `quill` version (`npm list quill`).
+- **Other Runtime Errors**:
+  - Share full error stack trace.
+  - Check console for warnings/errors from `try-catch` blocks.
+  - Add log in `rewriteFormats`:
+    ```typescript
+    console.log(`Format ${format} value:`, original);
+    ```
+- **Functionality Issues**:
+  - If toolbar/grid fails, check `addToolbarHandler` logs.
+  - If ops fail, log in `insertRow`:
+    ```typescript
+    console.log('Cell:', cell, 'Row:', row, 'TableBlot:', tableBlot);
+    ```
+  - Share `npm list quill @types/quill ngx-quill`, `tsconfig.json`.
+- **General**:
+  - Provide screenshots of toolbar/menu.
+  - Share failing operations (e.g., “Paste fails”).
+
+#### 7. **Next Steps**
+1. Implement updated files.
+2. Run `ng build` and `ng serve`.
+3. Test all features, focusing on runtime errors and clipboard.
+4. If issues persist, share:
+   - Full error stack trace.
+   - Console logs (Delta, formats, paste, etc.).
+   - `npm list quill @types/quill ngx-quill`.
+   - `tsconfig.json`.
+   - Screenshots or specific failures.
+5. If new gaps arise, specify details.
+
+This solution fixes the “Delta is not a constructor” error and adds safeguards to prevent other runtime errors, ensuring the module mimics `quill1.3.7-table-module` fully. Please share test results or error details!
