@@ -29,7 +29,7 @@ Quill.register('blots/table', Table, true);
 export class TableModule {
   static moduleName = 'table';
   static toolName = 'table';
-  quill: any; // Use any to avoid strict type issues with Quill
+  quill: any;
   options: { fullWidth?: boolean; customButton?: string };
 
   constructor(quill: any, options: { fullWidth?: boolean; customButton?: string }) {
@@ -44,9 +44,21 @@ export class TableModule {
   }
 
   addToolbarHandler() {
-    const toolbar = this.quill.getModule('toolbar');
+    // Directly access the toolbar container
+    const toolbar = this.quill.container.parentNode.querySelector('.ql-toolbar');
     if (toolbar) {
-      toolbar.addHandler('table', this.createTable.bind(this));
+      // Check if button already exists
+      if (!toolbar.querySelector('.ql-table')) {
+        const button = document.createElement('button');
+        button.className = 'ql-table';
+        button.title = this.options.customButton || 'Insert Table';
+        button.innerHTML = '<span>Table</span>'; // Customize icon/text
+        button.addEventListener('click', () => this.createTable({ row: 3, col: 3 }));
+        toolbar.querySelector('.ql-formats')?.appendChild(button);
+      }
+    } else {
+      console.warn('Toolbar not found, retrying in 100ms');
+      setTimeout(() => this.addToolbarHandler(), 100); // Retry if toolbar not ready
     }
   }
 
@@ -70,9 +82,15 @@ export class TableModule {
       table.appendChild(row);
     }
 
-    delta.retain(range.index).insert('\n', { table: true });
+    delta.retain(range.index).insert({ table: true });
     this.quill.updateContents(delta, Quill.sources.USER);
     this.quill.setSelection(range.index + 1, Quill.sources.SILENT);
+
+    // Insert the table DOM element
+    const [blot] = this.quill.scroll.descendant(Parchment.Blot, range.index);
+    if (blot) {
+      blot.domNode.parentNode.insertBefore(table, blot.domNode.nextSibling);
+    }
   }
 
   insertRow(above: boolean) {
