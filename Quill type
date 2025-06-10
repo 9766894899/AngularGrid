@@ -1,52 +1,42 @@
-Thank you for reporting the compile error in the TypeScript-based `quill-table-module` provided for your Angular 2+ application with Quill 1.3.7 and `ngx-quill`. Since you haven’t shared the specific error details, I’ll assume the error occurs during TypeScript compilation (`ng build` or `ng serve`) and is likely related to the latest code, which includes the custom clipboard handling to fill the gap in `quill1.3.7-table-module` functionality. Common TypeScript compile errors in this context could stem from:
-- Type mismatches with Quill’s APIs (e.g., `Parchment.Blot`, `Clipboard`).
-- Incorrect `@types/quill` version for Quill 1.3.7.
-- Syntax issues in the clipboard matcher or blot definitions.
-- Missing or incompatible dependencies.
+Thank you for reporting the runtime error in the TypeScript-based `quill-table-module` for your Angular 2+ application with Quill 1.3.7 and `ngx-quill`. The specific error, **"Delta is not a constructor"**, occurs when attempting to create a new `Delta` instance (e.g., `new Delta()`), indicating that the `Delta` import from `quill` is either undefined or not a constructor function at runtime. Additionally, you’ve requested a thorough check for **all potential runtime errors** to ensure the module fully mimics `quill1.3.7-table-module` (as per the demo at [zzxming.github.io/quill-table/](https://zzxming.github.io/quill-table/)) with no errors or functionality gaps.
 
-To provide a correct solution, I’ll:
-1. Review the previous code for potential TypeScript issues.
-2. Fix common compile errors by ensuring proper types and syntax.
-3. Maintain all functionality (table creation with hover grid, row/column operations, context menu, clipboard handling).
-4. Update the setup to prevent compilation failures.
-5. Request specific error details to confirm the fix addresses your issue.
+I’ll:
+1. **Resolve the "Delta is not a constructor" error** by fixing the `Delta` import and usage.
+2. **Review the code** for other potential runtime errors (e.g., null references, undefined methods, format issues from prior `rewriteFormats` fix).
+3. **Provide a corrected solution** preserving all features (table creation with 6x6 hover grid, row/column operations, context menu, clipboard handling, English labels, custom CSS).
+4. **Ensure compatibility** with Quill 1.3.7, `ngx-quill@14.3.0`, and Angular 2+.
+5. **Include a testing plan** to verify no runtime errors and full functionality.
 
-If you can share the exact error message (e.g., from `ng build` output or IDE), I can tailor the fix precisely. For now, I’ll assume errors like `Property 'addMatcher' does not exist on type 'Clipboard'` or type mismatches in `Parchment` APIs, which are common with Quill 1.3.7 and TypeScript.
+### Root Cause Analysis: "Delta is not a Constructor"
+The error occurs in methods like `tableMatcher` or `createTable`, where `new Delta()` is called (e.g., `const tableDelta = new Delta().insert('\n', { table: true });`). Possible causes include:
+- **Incorrect Import**: The `import { Delta, RangeStatic } from 'quill'` may not correctly in Quill 1.3.7, as `Delta` might not be a named export or is bundled differently.
+- **Module Resolution**: The runtime environment (e.g., Angular CLI, Webpack) may not resolve `quill` correctly, causing `Delta` to be `undefined`.
+- **Quill Version**: In Quill 1.3.7, `Delta` is a named export, but older `@types/quill` (e.g., `1.0.8`) might misalign with runtime behavior, causing type mismatches.
+- **Previous Fixes**: The `rewriteFormats` fix addressed a prior runtime error, but other areas (e.g., clipboard, selection) may still have hidden issues.
 
-### Review of Potential Compile Errors
-**Likely Issues**:
-1. **Clipboard `addMatcher`**:
-   - The `TableClipboard` class uses `addMatcher`, which may not be typed correctly in `@types/quill@1.3.8` for Quill 1.3.7. Quill’s clipboard API in 1.3.7 is less typed, causing errors.
-2. **Parchment Types**:
-   - `Parchment.create` and `Parchment.Blot` may trigger type errors if `@types/quill` is misaligned (e.g., `TS2345: Argument of type 'string' is not assignable to parameter of type 'BlotConstructor'`).
-3. **Blot Hierarchy**:
-   - `TableRow` and `Table` extend `Container`, but `allowedChildren` or `scope` may cause strict type checks to fail.
-4. **Dependency Version**:
-   - `@types/quill@1.3.8` may be too new for Quill 1.3.7, causing type mismatches. Version `@types/quill@1.0.8` is more compatible.
-5. **Syntax**:
-   - Minor syntax errors (e.g., `backspace` binding `key: true` in `app.module.ts` should be `key: 8`).
-
-**Fix Strategy**:
-- Use `@types/quill@1.0.8` for better compatibility.
-- Explicitly type clipboard matcher to bypass `addMatcher` errors.
-- Add type assertions for Parchment APIs.
-- Correct syntax errors (e.g., backspace binding).
-- Preserve all features, including the new clipboard handling.
+### Other Potential Runtime Errors
+I’ll review the code for additional risks:
+1. **Undefined Blots**: `Parchment.create('table')` or `TableCell` lookups may fail if blots aren’t registered correctly.
+2. **Selection Issues**: `quill.getSelection(true)` may return `null` in edge cases, causing `getValidSelection` to fail.
+3. **Clipboard Matcher**: `(this as any).addMatcher` or `tableMatcher` may throw if `node` or `quill` is invalid.
+4. **DOM Access**: `quill.container.parentNode?.querySelector('.ql-toolbar')` or `closest('td')` may return `null`, causing errors.
+5. **Format Rewriting**: Even with the `rewriteFormats` fix, edge cases (e.g., missing `list` format) may cause issues.
+6. **Toolbar Initialization**: `addToolbarHandler` retry logic may loop indefinitely if `.ql-toolbar` never exists.
 
 ### Corrected Solution
+I’ll fix the `Delta` error by using `Quill.import('delta')` (correct for Quill 1.3.7) and add safeguards for other potential runtime errors.
 
 #### 1. **Updated TypeScript Library**
-Fix potential type errors in `quill-table-module.ts` by adjusting clipboard typing, Parchment usage, and ensuring compatibility with `@types/quill@1.0.8`.
-
 **src/app/lib/quill-table-module.ts**:
 ```typescript
-import Quill, { Delta, RangeStatic } from 'quill';
+import Quill from 'quill';
 
-// Import Parchment
+// Import Parchment and Delta
 const Parchment = Quill.import('parchment');
 const Block = Quill.import('blots/block');
 const Container = Quill.import('blots/container');
-const Clipboard = Quill.import('modules/clipboard') as any; // Use any to bypass type issues
+const Clipboard = Quill.import('modules/clipboard') as any;
+const Delta = Quill.import('delta'); // Fix: Use Quill.import for Delta
 
 // Define Table Blots
 class TableCell extends Block {
@@ -100,66 +90,75 @@ class Table extends Container {
 class TableClipboard extends Clipboard {
   constructor(quill: Quill, options: any) {
     super(quill, options);
-    // Use dynamic property to avoid type error
     (this as any).addMatcher('TABLE', this.tableMatcher.bind(this));
   }
 
-  tableMatcher(node: HTMLElement, delta: Delta): Delta {
-    if (node.tagName !== 'TABLE') return delta;
+  tableMatcher(node: HTMLElement, delta: any): any {
+    if (!node || node.tagName !== 'TABLE') return delta;
 
-    const tableBlot = Parchment.create('table', { fullWidth: true }) as any;
-    const rows = node.querySelectorAll('tr');
-    rows.forEach((row: HTMLElement) => {
-      const rowBlot = Parchment.create('table-row') as any;
-      const cells = row.querySelectorAll('td, th');
-      cells.forEach((cell: HTMLElement) => {
-        const cellBlot = Parchment.create('table-cell') as any;
-        const content = this.sanitizeCellContent(cell);
-        cellBlot.domNode.innerHTML = content || '<br>';
-        rowBlot.appendChild(cellBlot);
+    try {
+      const tableBlot = Parchment.create('table', { fullWidth: true }) as any;
+      const rows = node.querySelectorAll('tr');
+      rows.forEach((row: HTMLElement) => {
+        const rowBlot = Parchment.create('table-row') as any;
+        const cells = row.querySelectorAll('td, th');
+        cells.forEach((cell: HTMLElement) => {
+          const cellBlot = Parchment.create('table-cell') as any;
+          const content = this.sanitizeCellContent(cell);
+          cellBlot.domNode.innerHTML = content || '<br>';
+          rowBlot.appendChild(cellBlot);
+        });
+        tableBlot.appendChild(rowBlot);
       });
-      tableBlot.appendChild(rowBlot);
-    });
 
-    const tableDelta = new Delta().insert('\n', { table: true });
-    this.quill.updateContents(tableDelta, Quill.sources.USER);
+      const tableDelta = new Delta().insert('\n', { table: true });
+      this.quill.updateContents(tableDelta, Quill.sources.USER);
 
-    const range = this.quill.getSelection(true) || { index: this.quill.scroll.length(), length: 0 };
-    const [blot] = this.quill.scroll.descendant(Parchment.Blot as any, range.index);
-    if (blot && blot.domNode.parentNode) {
-      blot.domNode.parentNode.insertBefore(tableBlot.domNode, blot.domNode.nextSibling);
-      this.quill.update(Quill.sources.USER);
-      this.quill.setSelection(range.index + 1, 0, Quill.sources.SILENT);
+      const range = this.quill.getSelection(true) || { index: this.quill.scroll.length(), length: 0 };
+      const [blot] = this.quill.scroll.descendant(Parchment.Blot as any, range.index);
+      if (blot && blot.domNode.parentNode) {
+        blot.domNode.parentNode.insertBefore(tableBlot.domNode, blot.domNode.nextSibling);
+        this.quill.update(Quill.sources.USER);
+        this.quill.setSelection(range.index + 1, 0, Quill.sources.SILENT);
+      }
+
+      return new Delta();
+    } catch (e) {
+      console.error('Error in tableMatcher:', e);
+      return delta;
     }
-
-    return new Delta();
   }
 
   sanitizeCellContent(cell: HTMLElement): string {
-    const div = document.createElement('div');
-    div.innerHTML = cell.innerHTML;
-    const allowedTags = ['b', 'i', 'u', 'a', 'strong', 'em', 'br'];
-    const allowedAttributes = ['href'];
-    const sanitizeNode = (node: Node) => {
-      if (node.nodeType === Node.ELEMENT_NODE) {
-        const element = node as HTMLElement;
-        if (!allowedTags.includes(element.tagName.toLowerCase())) {
-          while (element.firstChild) {
-            element.parentNode?.insertBefore(element.firstChild, element);
+    try {
+      const div = document.createElement('div');
+      div.innerHTML = cell.innerHTML;
+      const allowedTags = ['b', 'i', 'u', 'a', 'strong', 'em', 'br'];
+      const allowedAttributes = ['href'];
+      const sanitizeNode = (node: Node) => {
+        if (node.nodeType === Node.ELEMENT_NODE) {
+          const element = node as HTMLElement;
+          if (!allowedTags.includes(element.tagName.toLowerCase())) {
+            while (element.firstChild) {
+              element.parentNode?.insertBefore(element.firstChild, element);
+            }
+            element.remove();
+            return;
           }
-          element.remove();
-          return;
-        }
-        for (const attr of Array.from(element.attributes)) {
-          if (!allowedAttributes.includes(attr.name)) {
-            element.removeAttribute(attr.name);
+          for (const attr of Array.from(element.attributes)) {
+            if (!allowedAttributes.includes(attr.name)) {
+              element.removeAttribute(attr.name);
+            }
           }
+          Array.from(element.childNodes).forEach(sanitizeNode);
         }
-        Array.from(element.childNodes).forEach(sanitizeNode);
-      }
-    };
-    Array.from(div.childNodes).forEach(sanitizeNode);
-    return div.innerHTML;
+      };
+      Array.from(div.childNodes).forEach(sanitizeNode);
+      return div.innerHTML;
+    } catch (e) {
+      console.error('Error sanitizing cell content:', e);
+      return '<br>';
+    }
   }
 }
 
@@ -198,24 +197,27 @@ export class TableModule {
   }
 
   rewriteFormats() {
-    const formats = ['list', 'header', 'align'];
+    const formats = ['list', 'header'];
     formats.forEach((format) => {
       const original = Quill.import(`formats/${format}`) as any;
-      // Check if original is a valid constructor
-      if (original && typeof original === 'function' && original.blotName) {
-        Quill.register(`formats/${format}`, class extends original {
-          static formats(domNode: HTMLElement) {
-            if (domNode.closest('td')) return null;
-            return super.formats(domNode);
-          }
-        }, true);
+      if (original && typeof original === 'function') {
+        Quill.register(
+          `formats/${format}`,
+          class extends original {
+            static formats(domNode: HTMLElement) {
+              if (domNode.closest('td')) return null;
+              return super.formats(domNode);
+            }
+          },
+          true
+        );
       } else {
-        console.warn(`Format ${format} could not be rewritten; original format not found or invalid.`);
+        console.warn(`Format ${format} not found or not a constructor, skipping rewrite`);
       }
     });
   }
 
-  addToolbarHandler() {
+  addToolbarHandler(maxRetries = 10, retryCount = 0) {
     const toolbar = this.quill.container.parentNode?.querySelector('.ql-toolbar') as HTMLElement;
     if (toolbar) {
       if (!toolbar.querySelector('.ql-table')) {
@@ -223,576 +225,324 @@ export class TableModule {
         button.className = 'ql-table';
         button.title = this.options.customButton;
         button.innerHTML = '<svg viewBox="0 0 18 18"><rect x="3" y="3" width="12" height="12" stroke="currentColor" fill="none" stroke-width="1"></rect><line x1="3" y1="6" x2="15" y2="6" stroke="currentColor" stroke-width="1"></line><line x1="3" y1="12" x2="15" y2="12" stroke="currentColor" stroke-width="1"></line><line x1="6" y1="3" x2="6" y2="15" stroke="currentColor" stroke-width="1"></line><line x1="12" y1="3" x2="12" y2="15" stroke="currentColor" stroke-width="1"></line></svg>';
-        button.addEventListener('mouseenter', (event) => this.showGrid(event));
+        button.addEventListener('mouseenter', (e) => this.showGrid(e));
         button.addEventListener('mouseleave', () => this.hideGrid());
         toolbar.querySelector('.ql-formats')?.appendChild(button);
       }
+    } else if (retryCount < maxRetries) {
+      setTimeout(() => this.addToolbarHandler(maxRetries, retryCount + 1), 100);
     } else {
-      setTimeout(() => this.addToolbarHandler(), 100);
+      console.warn('Toolbar not found after max retries');
     }
   }
 
-  showGrid(event: MouseEvent) {
-    if (this.gridContainer) this.gridContainer.remove();
+  showGrid(event: any) {
+    try {
+      if (this.gridContainer) this.hideGrid();
 
-    this.gridContainer = document.createElement('div');
-    this.gridContainer.className = 'ql-table-grid';
-    this.gridContainer.style.position = 'absolute';
-    this.gridContainer.style.background = '#fff';
-    this.gridContainer.style.border = '1px solid #ccc';
-    this.gridContainer.style.zIndex = '1000';
-    this.gridContainer.style.padding = '5px';
-    this.gridContainer.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
+      this.gridContainer = document.createElement('div');
+      this.gridContainer.className = 'ql-table-grid';
+      this.gridContainer.style.position = 'absolute';
+      this.gridContainer.style.background = '#fff';
+      this.gridContainer.style.border = '1px solid #ccc';
+      this.gridContainer.style.zIndex = '1000';
+      this.gridContainer.style.padding = '5px';
+      this.gridContainer.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
 
-    const button = event.target as HTMLElement;
-    const rect = button.getBoundingClientRect();
-    this.gridContainer.style.left = `${rect.left}px`;
-    this.gridContainer.style.top = `${rect.bottom + window.scrollY}px`;
+      const button = event.target as HTMLElement;
+      const rect = button.getBoundingClientRect();
+      this.gridContainer.style.left = `${rect.left}px`;
+      this.gridContainer.style.top = `${rect.bottom + window.scrollY}px`;
 
-    for (let row = 0; row < 6; row++) {
-      const rowDiv = document.createElement('div');
-      rowDiv.style.display = 'flex';
-      for (let col = 0; col < 6; col++) {
-        const cell = document.createElement('div');
-        cell.style.width = '20px';
-        cell.style.height = '20px';
-        cell.style.border = '1px solid #ddd';
-        cell.style.margin = '1px';
-        cell.style.cursor = 'pointer';
-        cell.dataset.row = (row + 1).toString();
-        cell.dataset.col = (col + 1).toString();
+      for (let row = 0; row < 6; row++) {
+        const rowDiv = document.createElement('div');
+        rowDiv.style.display = 'flex';
+        for (let col = 0; col < 6; col++) {
+          const cell = document.createElement('div');
+          cell.style.width = '20px';
+          cell.style.height = '20px';
+          cell.style.border = '1px solid #ddd';
+          cell.style.margin = '1px';
+          cell.style.cursor = 'pointer';
+          cell.dataset.row = (row + 1).toString();
+          cell.dataset.col = (col + 1).toString();
 
-        cell.addEventListener('mouseover', () => this.highlightGrid(row + 1, col + 1));
-        cell.addEventListener('click', () => {
-          const rows = parseInt(cell.dataset.row || '3', 10);
-          const cols = parseInt(cell.dataset.col || '3', 10);
-          this.createTable({ row: rows, col: cols });
-          this.hideGrid();
-        });
+          cell.addEventListener('mouseover', () => this.highlightGrid(row + 1, col + 1));
+          cell.addEventListener('click', () => {
+            const rows = parseInt(cell.dataset.row || '3', 10);
+            const cols = parseInt(cell.dataset.col || '3', 10);
+            this.createTable({ row: rows, col: cols });
+            this.hideGrid();
+          });
 
-        rowDiv.appendChild(cell);
+          rowDiv.appendChild(cell);
+        }
+        this.gridContainer.appendChild(rowDiv);
       }
-      this.gridContainer.appendChild(rowDiv);
-    }
 
-    document.body.appendChild(this.gridContainer);
+      document.body.appendChild(this.gridContainer);
+    } catch (e) {
+      console.error('Error showing grid:', e);
+    }
   }
 
   highlightGrid(rows: number, cols: number) {
     if (!this.gridContainer) return;
-    const cells = this.gridContainer.querySelectorAll('div[data-row]');
-    cells.forEach((cell: HTMLElement) => {
-      const r = parseInt(cell.dataset.row || '0', 10);
-      const c = parseInt(cell.dataset.col || '0', 10);
-      cell.style.background = r <= rows && c <= cols ? '#e6f3ff' : '#fff';
-    });
+    try {
+      const cells = this.gridContainer.querySelectorAll('div[data-row]');
+      cells.forEach((cell: HTMLElement) => {
+        const r = parseInt(cell.dataset.row || '0', 10);
+        const c = parseInt(cell.dataset.col || '0', 10);
+        cell.style.background = r <= rows && c <= cols ? '#e6f3ff' : '#fff';
+      });
+    } catch (e) {
+      console.error('Error highlighting grid:', e);
+    }
   }
 
   hideGrid() {
-    if (this.gridContainer) {
-      this.gridContainer.remove();
-      this.gridContainer = null;
+    try {
+      if (this.gridContainer) {
+        this.gridContainer.remove();
+        this.gridContainer = null;
+      }
+    } catch (e) {
+      console.error('Error hiding grid:', e);
     }
   }
 
   createTable(options: { row: number; col: number }) {
-    const range = this.getValidSelection();
-    if (!range) return;
-
-    const tableBlot = Parchment.create('table', { fullWidth: this.options.fullWidth }) as any;
-    for (let i = 0; i < options.row; i++) {
-      const rowBlot = Parchment.create('table-row') as any;
-      for (let j = 0; j < options.col; j++) {
-        const cellBlot = Parchment.create('table-cell') as any;
-        rowBlot.appendChild(cellBlot);
+    try {
+      const range = this.getValidSelection();
+      if (!range) {
+        console.warn('Invalid selection for table creation');
+        return;
       }
-      tableBlot.appendChild(rowBlot);
-    }
 
-    const delta = new Delta().retain(range.index).insert('\n', { table: true });
-    this.quill.updateContents(delta, Quill.sources.USER);
+      const tableBlot = Parchment.create('table', { fullWidth: this.options.fullWidth }) as any;
+      for (let i = 0; i < options.row; i++) {
+        const rowBlot = Parchment.create('table-row') as any;
+        for (let j = 0; j < options.col; j++) {
+          const cellBlot = Parchment.create('table-cell') as any;
+          rowBlot.appendChild(cellBlot);
+        }
+        tableBlot.appendChild(rowBlot);
+      }
 
-    const [blot] = this.quill.scroll.descendant(Parchment.Blot as any, range.index);
-    if (blot && blot.domNode.parentNode) {
-      blot.domNode.parentNode.insertBefore(tableBlot.domNode, blot.domNode.nextSibling);
-      this.quill.update(Quill.sources.USER);
-      this.quill.setSelection(range.index + 1, 0, Quill.sources.SILENT);
+      const delta = new Delta().retain(range.index).insert('\n', { table: true });
+      this.quill.updateContents(delta, Quill.sources.USER);
+
+      const [blot] = this.quill.scroll.descendant(Parchment.Blot as any, range.index);
+      if (blot && blot.domNode.parentNode) {
+        blot.domNode.parentNode.insertBefore(tableBlot.domNode, blot.domNode.nextSibling);
+        this.quill.update(Quill.sources.USER);
+        this.quill.setSelection(range.index + 1, 0, Quill.sources.SILENT);
+      } else {
+        console.warn('Unable to insert table blot');
+      }
+    } catch (e) {
+      console.error('Error creating table:', e);
     }
   }
 
   insertRow(above: boolean) {
-    const range = this.getValidSelection();
-    if (!range) return;
+    try {
+      const range = this.getValidSelection();
+      if (!range) return;
 
-    const cell = this.getCellAt(range.index);
-    if (!cell) return;
+      const cell = this.getCellAt(range.index);
+      if (!cell) {
+        console.warn('No cell found for row insertion');
+        return;
+      }
 
-    const row = cell.closest('tr') as HTMLElement;
-    const table = row.closest('table') as HTMLElement;
-    const tableBlot = this.quill.scroll.find(table);
-    if (!tableBlot) return;
+      const row = cell.closest('tr') as HTMLElement;
+      const table = row.closest('table') as HTMLElement;
+      const tableBlot = this.quill.scroll.find(table);
+      if (!tableBlot) {
+        console.warn('No table blot found');
+        return;
+      }
 
-    const rowIndex = Array.from(table.children).indexOf(row);
-    const newRowBlot = Parchment.create('table-row') as any;
-    const cellCount = row.children.length;
+      const rowIndex = Array.from(table.children).indexOf(row);
+      const newRowBlot = Parchment.create('table-row') as any;
+      const cellCount = row.children.length;
 
-    for (let i = 0; i < cellCount; i++) {
-      const newCellBlot = Parchment.create('table-cell') as any;
-      newRowBlot.appendChild(newCellBlot);
+      for (let i = 0; i < cellCount; i++) {
+        const newCellBlot = Parchment.create('table-cell') as any;
+        newRowBlot.appendChild(newCellBlot);
+      }
+
+      tableBlot.insertBefore(newRowBlot, tableBlot.children[above ? rowIndex : rowIndex + 1]);
+      this.quill.update(Quill.sources.USER);
+
+      const offset = above ? 0 : cellCount;
+      this.quill.setSelection(range.index + offset, 0, Quill.sources.SILENT);
+    } catch (e) {
+      console.error('Error inserting row:', e);
     }
-
-    tableBlot.insertBefore(newRowBlot, tableBlot.children[above ? rowIndex : rowIndex + 1]);
-    this.quill.update(Quill.sources.USER);
-
-    const offset = above ? 0 : cellCount;
-    this.quill.setSelection(range.index + offset, 0, Quill.sources.SILENT);
   }
 
   insertColumn(left: boolean) {
-    const range = this.getValidSelection();
-    if (!range) return;
+    try {
+      const range = this.getValidSelection();
+      if (!range) return;
 
-    const cell = this.getCellAt(range.index);
-    if (!cell) return;
+      const cell = this.getCellAt(range.index);
+      if (!cell) {
+        console.warn('No cell found for column insertion');
+        return;
+      }
 
-    const row = cell.closest('tr') as HTMLElement;
-    const table = row.closest('table') as HTMLElement;
-    const tableBlot = this.quill.scroll.find(table);
-    if (!tableBlot) return;
+      const row = cell.closest('tr') as HTMLElement;
+      const table = row.closest('table') as HTMLElement;
+      const tableBlot = this.quill.scroll.find(table);
+      if (!tableBlot) {
+        console.warn('No table blot found');
+        return;
+      }
 
-    const cellIndex = Array.from(row.children).indexOf(cell);
-    tableBlot.children.forEach((rowBlot: any) => {
-      const newCellBlot = Parchment.create('table-cell') as any;
-      rowBlot.insertBefore(newCellBlot, rowBlot.children[left ? cellIndex : cellIndex + 1]);
-    });
+      const cellIndex = Array.from(row.children).indexOf(cell);
+      tableBlot.children.forEach((rowBlot: any) => {
+        const newCellBlot = Parchment.create('table-cell') as any;
+        rowBlot.insertBefore(newCellBlot, rowBlot.children[left ? cellIndex : cellIndex + 1]);
+      });
 
-    this.quill.update(Quill.sources.USER);
-    this.quill.setSelection(range.index + (left ? 0 : 1), 0, Quill.sources.SILENT);
+      this.quill.update(Quill.sources.USER);
+      this.quill.setSelection(range.index + (left ? 0 : 1), 0, Quill.sources.SILENT);
+    } catch (e) {
+      console.error('Error inserting column:', e);
+    }
   }
 
   deleteRow() {
-    const range = this.getValidSelection();
-    if (!range) return;
+    try {
+      const range = this.getValidSelection();
+      if (!range) return;
 
-    const cell = this.getCellAt(range.index);
-    if (!cell) return;
+      const cell = this.getCellAt(range.index);
+      if (!cell) {
+        console.warn('No cell found for row deletion');
+        return;
+      }
 
-    const row = cell.closest('tr') as HTMLElement;
-    const table = row.closest('table') as HTMLElement;
-    const tableBlot = this.quill.scroll.find(table);
-    if (!tableBlot) return;
+      const row = cell.closest('tr') as HTMLElement;
+      const table = row.closest('table') as HTMLElement;
+      const tableBlot = this.quill.scroll.find(table);
+      if (!tableBlot) {
+        console.warn('No table blot found');
+        return;
+      }
 
-    const rowIndex = Array.from(table.children).indexOf(row);
-    tableBlot.children[rowIndex].remove();
-    this.quill.update(Quill.sources.USER);
-    this.quill.setSelection(range.index, 0, Quill.sources.SILENT);
+      const rowIndex = Array.from(table.children).indexOf(row);
+      tableBlot.children[rowIndex].remove();
+      this.quill.update(Quill.sources.USER);
+      this.quill.setSelection(range.index, 0, Quill.sources.SILENT);
+    } catch (e) {
+      console.error('Error deleting row:', e);
+    }
   }
 
   deleteColumn() {
-    const range = this.getValidSelection();
-    if (!range) return;
+    try {
+      const range = this.getValidSelection();
+      if (!range) return;
 
-    const cell = this.getCellAt(range.index);
-    if (!cell) return;
-
-    const row = cell.closest('tr') as HTMLElement;
-    const table = row.closest('table') as HTMLElement;
-    const tableBlot = this.quill.scroll.find(table);
-    if (!tableBlot) return;
-
-    const cellIndex = Array.from(row.children).indexOf(cell);
-    tableBlot.children.forEach((rowBlot: any) => {
-      if (rowBlot.children[cellIndex]) {
-        rowBlot.children[cellIndex].remove();
+      const cell = this.getCellAt(range.index);
+      if (!cell) {
+        console.warn('No cell found for column deletion');
+        return;
       }
-    });
 
-    this.quill.update(Quill.sources.USER);
-    this.quill.setSelection(range.index, 0, Quill.sources.SILENT);
+      const row = cell.closest('tr') as HTMLElement;
+      const table = row.closest('table') as HTMLElement;
+      const tableBlot = this.quill.scroll.find(table);
+      if (!tableBlot) {
+        console.warn('No table blot found');
+        return;
+      }
+
+      const cellIndex = Array.from(row.children).indexOf(cell);
+      tableBlot.children.forEach((rowBlot: any) => {
+        if (rowBlot.children[cellIndex]) {
+          rowBlot.children[cellIndex].remove();
+        }
+      });
+
+      this.quill.update(Quill.sources.USER);
+      this.quill.setSelection(range.index, 0, Quill.sources.SILENT);
+    } catch (e) {
+      console.error('Error deleting column:', e);
+    }
   }
 
   deleteTable() {
-    const range = this.getValidSelection();
-    if (!range) return;
+    try {
+      const range = this.getValidSelection();
+      if (!range) return;
 
-    const cell = this.getCellAt(range.index);
-    if (!cell) return;
+      const cell = this.getCellAt(range.index);
+      if (!cell) {
+        console.warn('No cell found for table deletion');
+        return;
+      }
 
-    const table = cell.closest('table') as HTMLElement;
-    const tableBlot = this.quill.scroll.find(table);
-    if (tableBlot) {
-      tableBlot.remove();
-      this.quill.update(Quill.sources.USER);
-      this.quill.setSelection(range.index, 0, Quill.sources.SILENT);
+      const table = cell.closest('table') as HTMLElement;
+      const tableBlot = this.quill.scroll.find(table);
+      if (tableBlot) {
+        tableBlot.remove();
+        this.quill.update(Quill.sources.USER);
+        this.quill.setSelection(range.index, 0, Quill.sources.SILENT);
+      } else {
+        console.warn('No table blot found');
+      }
+    } catch (e) {
+      console.error('Error deleting table:', e);
     }
   }
 
   getCellAt(index: number): HTMLElement | null {
-    const [blot] = this.quill.scroll.descendant(TableCell, index);
-    if (blot) return blot.domNode;
+    try {
+      const [blot] = this.quill.scroll.descendant(TableCell, index);
+      if (blot) return blot.domNode;
 
-    const [block] = this.quill.scroll.descendant(Parchment.Blot as any, index);
-    return block ? block.domNode.closest('td') : null;
+      const [block] = this.quill.scroll.descendant(Parchment.Blot as any, index);
+      return block ? block.domNode.closest('td') : null;
+    } catch (e) {
+      console.error('Error getting cell at index:', e);
+      return null;
+    }
   }
 
-  getValidSelection(): RangeStatic | null {
-    let range = this.quill.getSelection(true);
-    if (!range) {
-      const length = this.quill.scroll.length();
-      this.quill.setSelection(length, 0, Quill.sources.SILENT);
-      range = this.quill.getSelection();
+  getValidSelection(): any {
+    try {
+      let range = this.quill.getSelection(true);
+      if (!range) {
+        const length = this.quill.scroll.length();
+        this.quill.setSelection(length, 0, Quill.sources.SILENT);
+        range = this.quill.getSelection();
+      }
+      return range;
+    } catch (e) {
+      console.error('Error getting valid selection:', e);
+      return null;
     }
-    return range;
   }
 
   addContextMenu() {
-    this.quill.container.addEventListener('contextmenu', (event: MouseEvent) => {
-      const table = (event.target as HTMLElement).closest('table');
-      if (table) {
-        event.preventDefault();
-        this.showCustomContextMenu(event, this);
-      }
-    });
+    try {
+      this.quill.container.addEventListener('contextmenu', (event: MouseEvent) => {
+        const table = (event.target as HTMLElement).closest('table');
+        if (table) {
+          event.preventDefault();
+          this.showCustomContextMenu(event, this);
+        }
+      });
+    } catch (e) {
+      console.error('Error adding context menu:', e);
+    }
   }
 
   showCustomContextMenu(event: MouseEvent, module: TableModule) {
-    const existingMenu = document.querySelector('.custom-context-menu');
-    if (existingMenu) existingMenu.remove();
-
-    const menu = document.createElement('div');
-    menu.className = 'custom-context-menu';
-    menu.style.position = 'absolute';
-    menu.style.left = `${event.clientX}px`;
-    menu.style.top = `${event.clientY}px`;
-
-    const menuItems = [
-      { label: 'Insert Row Above', action: () => module.insertRow(true) },
-      { label: 'Insert Row Below', action: () => module.insertRow(false) },
-      { label: 'Insert Column Left', action: () => module.insertColumn(true) },
-      { label: 'Insert Column Right', action: () => module.insertColumn(false) },
-      { label: 'Delete Row', action: () => module.deleteRow() },
-      { label: 'Delete Column', action: () => module.deleteColumn() },
-      { label: 'Delete Table', action: () => module.deleteTable() },
-    ];
-
-    menuItems.forEach(item => {
-      const menuItem = document.createElement('div');
-      menuItem.textContent = item.label;
-      menuItem.addEventListener('click', () => {
-        item.action();
-        menu.remove();
-      });
-      menu.appendChild(menuItem);
-    });
-
-    document.body.appendChild(menu);
-    document.addEventListener('click', () => menu.remove(), { once: true });
-  }
-}
-
-export default TableModule;
-```
-
-**Changes**:
-- **Clipboard Typing**: Used `Clipboard as any` and `(this as any).addMatcher` to bypass `addMatcher` type errors, as `@types/quill@1.0.8` lacks this method’s definition for Quill 1.3.7.
-- **Parchment Typing**: Added `as any` to `Parchment.create` and `Parchment.Blot` to avoid strict type checks.
-- **Preserved Functionality**: All features (hover grid, row/column ops, context menu, clipboard pasting) remain intact.
-- **Error Prevention**: Type assertions ensure compilation without sacrificing runtime behavior.
-
-#### 2. **CSS**
-No changes needed, as the CSS was already corrected.
-
-**src/assets/quill-table-module/quill-table-module.css**:
-```css
-table {
-  border-collapse: collapse;
-  width: 100%;
-  margin: 10px 0;
-  border: 2px solid #007bff;
-}
-
-td, th {
-  border: 2px solid #007bff;
-  padding: 10px;
-  text-align: left;
-  background-color: #f9f9f9;
-}
-
-th {
-  background-color: #007bff;
-  color: white;
-  font-weight: bold;
-}
-
-td:hover {
-  background-color: #e6f3ff;
-}
-
-.ql-toolbar .ql-table {
-  background-color: #007bff;
-  color: white;
-  border-radius: 4px;
-  padding: 5px;
-  margin: 0 2px;
-  border: none;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-}
-
-.ql-toolbar .ql-table:hover {
-  background-color: #0056b3;
-}
-
-.ql-toolbar .ql-table svg {
-  width: 16px;
-  height: 16px;
-}
-
-.ql-table-grid {
-  width: 150px;
-  background: #fff;
-  border: 1px solid #ccc;
-  padding: 5px;
-  z-index: 1000;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-}
-
-.ql-table-grid div {
-  display: flex;
-}
-
-.ql-table-grid div div {
-  width: 20px;
-  height: 20px;
-  border: 1px solid #ddd;
-  margin: 1px;
-  cursor: pointer;
-}
-
-.ql-table-grid div div:hover {
-  background-color: #e6f3ff;
-}
-
-.custom-context-menu {
-  position: absolute;
-  background: #fff;
-  border: 1px solid #ccc;
-  padding: 5px;
-  z-index: 1000;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-  font-family: Arial, sans-serif;
-  font-size: 14px;
-}
-
-.custom-context-menu div {
-  padding: 8px 15px;
-  cursor: pointer;
-}
-
-.custom-context-menu div:hover {
-  background-color: #e6f3ff;
-}
-```
-
-#### 3. **Angular Integration**
-Fix the backspace binding syntax in `app.module.ts` and update dependencies.
-
-**angular.json**:
-```json
-{
-  "styles": [
-    "src/styles.css",
-    "node_modules/quill/dist/quill.snow.css",
-    "src/assets/quill-table-module/quill-table-module.css"
-  ]
-}
-```
-
-**app.module.ts**:
-```typescript
-import { NgModule } from '@angular/core';
-import { BrowserModule } from '@angular/platform-browser';
-import { QuillModule } from 'ngx-quill';
-import Quill from 'quill';
-import { TableModule } from './lib/quill-table-module';
-
-Quill.register('modules/table', TableModule, true);
-
-@NgModule({
-  declarations: [AppComponent],
-  imports: [
-    BrowserModule,
-    QuillModule.forRoot({
-      modules: {
-        toolbar: [
-          ['table'],
-          ['bold', 'italic', 'underline'],
-          [{ 'color': [] }, { 'background': [] }],
-          [{ 'list': 'ordered' }, { 'list': 'bullet' }],
-          ['link']
-        ],
-        table: {
-          fullWidth: true,
-          customButton: 'Insert Table'
-        },
-        keyboard: {
-          bindings: {
-            backspace: {
-              key: 8, // Fixed: Changed from key: true
-              handler: () => true
-            }
-          }
-        }
-      },
-      theme: 'snow'
-    })
-  ],
-  bootstrap: [AppComponent]
-})
-export class AppModule {}
-```
-
-**app.component.ts**:
-```typescript
-import { Component, AfterViewInit } from '@angular/core';
-import Quill from 'quill';
-
-@Component({
-  selector: 'app-root',
-  template: `
-    <quill-editor [styles]="{ height: '300px' }"></quill-editor>
-    <button (click)="insertTable()">Insert Table</button>
-  `,
-  styles: [`
-    .ql-editor {
-      min-height: 300px;
-    }
-  `]
-})
-export class AppComponent implements AfterViewInit {
-  private quill: Quill | null = null;
-
-  ngAfterViewInit() {
-    const editor = document.querySelector('.ql-editor');
-    if (editor) {
-      const container = editor.closest('.ql-container');
-      if (container && 'Quill' in container) {
-        this.quill = (container as any).Quill;
-      }
-    }
-
-    if (this.quill) {
-      const tableModule = this.quill.getModule('table');
-      if (tableModule) {
-        console.log('Modules:', this.quill.getModules());
-        console.log('Table module:', tableModule);
-        console.log('Backspace binding:', this.quill.keyboard.bindings[8]);
-        console.log('Toolbar buttons:', document.querySelectorAll('.ql-toolbar .ql-table'));
-        console.log('Selection:', this.quill.getSelection());
-      } else {
-        console.error('Table module not registered');
-      }
-    } else {
-      console.error('Quill instance not found');
-    }
-  }
-
-  insertTable() {
-    if (this.quill) {
-      const tableModule = this.quill.getModule('table');
-      if (tableModule) {
-        tableModule.createTable({ row: 3, col: 3 }); // Fixed: createTable vs create
-      } else {
-        console.error('Table module not registered');
-      }
-    }
-  }
-}
-```
-
-**Changes**:
-- **Backspace Binding**: Fixed `key: true` to `key: 8` in `app.module.ts`.
-- **Method Name**: Corrected `create` to `createTable` in `insertTable` (typo from previous response).
-- **Quill Instance**: Simplified Quill retrieval logic.
-
-#### 4. **Dependencies**
-Update to `@types/quill@1.0.8` for Quill 1.3.7 compatibility.
-
-**package.json**:
-```json
-{
-  "dependencies": {
-    "quill": "^1.3.7",
-    "ngx-quill": "^14.3.0",
-    "@types/quill": "^1.0.8"
-  }
-}
-```
-Install:
-```bash
-npm install
-```
-
-#### 5. **Testing Plan**
-1. **Compilation**:
-   - Run `ng build` to verify no TypeScript errors.
-   - If errors persist, share the exact error message (e.g., from terminal or IDE).
-2. **Core Features**:
-   - **Toolbar**: Confirm table button with SVG icon; hover shows 6x6 grid.
-   - **Grid**: Select 3x2 table, verify insertion.
-   - **Context Menu**: Right-click cell, test all options (e.g., “Insert Row Below”, “Delete Column”).
-   - **Selection**: Click cell, type text, use context menu; cursor stays in cell.
-   - **Backspace**: Type in cell, press backspace, no errors.
-3. **Clipboard Handling**:
-   - Copy a table from Word/Excel (e.g., 2x2 with text, bold).
-   - Paste into editor; verify structure, text, and inline formats.
-   - Add log in `tableMatcher`:
-     ```typescript
-     console.log('Pasting table:', node.outerHTML);
-     ```
-   - Test with:
-     ```html
-     <table><tr><td>Test</td><td><b>Bold</b></td></tr></table>
-     ```
-4. **Edge Cases**:
-   - Paste empty table or table with merged cells.
-   - Undo/redo operations and paste.
-5. **CSS**:
-   - Check table borders, button/grid/menu styling.
-6. **Logs**:
-   - Verify:
-     ```typescript
-     console.log('Modules:', this.quill.getModules());
-     console.log('Table module:', this.quill.getModule('table'));
-     console.log('Toolbar buttons:', document.querySelectorAll('.ql-toolbar .ql-table'));
-     console.log('Selection:', this.quill.getSelection());
-     ```
-
-#### 6. **Troubleshooting**
-- **Compile Errors**:
-  - Share error message (e.g., `TS2339: Property 'addMatcher' does not exist`).
-  - Run `npm list quill @types/quill ngx-quill` and share output.
-  - Check `tsconfig.json` for strict settings (e.g., `"strict": true`); consider setting `"strictNullChecks": false` temporarily.
-- **Clipboard Issues**:
-  - Log `node.outerHTML` in `tableMatcher`.
-  - If table not pasted, check `range` and `tableBlot.domNode`.
-- **Runtime Issues**:
-  - Share console logs, screenshots of toolbar/menu.
-  - Test with minimal setup to isolate issues.
-
-#### 7. **Next Steps**
-1. Implement the updated files.
-2. Run `ng build` and `ng serve`.
-3. Test all features, especially compilation and clipboard pasting.
-4. If errors persist, share:
-   - Exact compile error message.
-   - `npm list quill @types/quill ngx-quill`.
-   - `tsconfig.json` content.
-   - Screenshots of issues.
-   - Any runtime errors post-compilation.
-
-This solution fixes likely compile errors by adjusting types and syntax, ensuring the module fully mimics `quill1.3.7-table-module` with clipboard handling. Please share the specific error for further precision!
+    try {
+  
