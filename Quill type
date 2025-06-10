@@ -201,13 +201,16 @@ export class TableModule {
     const formats = ['list', 'header', 'align'];
     formats.forEach((format) => {
       const original = Quill.import(`formats/${format}`) as any;
-      if (original) {
+      // Check if original is a valid constructor
+      if (original && typeof original === 'function' && original.blotName) {
         Quill.register(`formats/${format}`, class extends original {
           static formats(domNode: HTMLElement) {
             if (domNode.closest('td')) return null;
             return super.formats(domNode);
           }
         }, true);
+      } else {
+        console.warn(`Format ${format} could not be rewritten; original format not found or invalid.`);
       }
     });
   }
