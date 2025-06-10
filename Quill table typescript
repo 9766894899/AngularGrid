@@ -1,0 +1,700 @@
+To integrate the `quill1.3.7-table-module` library into an Angular 2+ application by manually adding the library files (instead of using npm) and ensuring the library is written in TypeScript, you’ll need to customize the language settings to English (instead of the default Chinese), customize the CSS for styling, and set up the integration in a way that works with Quill 1.3.7 and `ngx-quill`. Since `quill1.3.7-table-module` is primarily distributed as JavaScript (with its `dist/index.js` and `dist/index.css` files), you’ll need to either obtain or create a TypeScript version of the library, manually include it in your Angular project, and handle compatibility issues (e.g., "table not registered", backspace errors, and Chinese labels).
+
+### Key Considerations
+- **Library in TypeScript**: The `quill1.3.7-table-module` source code is not publicly available in TypeScript on its npm page ([npmjs.com/package/quill1.3.7-table-module](https://www.npmjs.com/package/quill1.3.7-table-module)) or a known GitHub repository. The distributed `dist/index.js` is minified JavaScript. You can:
+  - Use the JavaScript version and create TypeScript declarations.
+  - Reimplement the library’s core functionality in TypeScript based on its API and behavior (as seen in the demo at [zzxming.github.io](https://zzxming.github.io/quill-table/demo/index.html)).
+- **Manual Integration**: Instead of npm, you’ll place the library files in your project (e.g., `src/assets/quill-table-module`) and load them via `angular.json`.
+- **Customization**:
+  - **Language**: Override Chinese labels with English using a custom context menu and, if needed, patch the library.
+  - **CSS**: Customize table and UI styling.
+- **Compatibility**: Ensure Quill 1.3.7 compatibility and avoid issues like those with `quill-better-table` (e.g., backspace errors).
+
+### Solution: Manual Integration of `quill1.3.7-table-module` in TypeScript
+
+Since the original library is JavaScript, I’ll guide you through:
+1. Creating a TypeScript version of the library’s core functionality (based on its API).
+2. Manually integrating it into your Angular 2+ app.
+3. Customizing language to English and CSS for styling.
+
+#### 1. **Create a TypeScript Version of the Library**
+Since `quill1.3.7-table-module`’s source isn’t available in TypeScript, we’ll create a simplified TypeScript module that mimics its key features: table creation, row/column operations, and context menu integration. This will be a basic implementation; you can extend it based on the original module’s behavior.
+
+**Step 1: Create TypeScript Module**
+Create a file: `src/app/lib/quill-table-module.ts`):
+```typescript
+import Quill from 'quill';
+
+// Table Blot
+const Block = Quill.import('blots/block');
+class TableCell extends Block {
+  static blotName = 'table-cell';
+  static tagName = 'TD';
+}
+
+class TableRow extends Block {
+  static blotName = 'table-row';
+  static tagName = 'TR';
+}
+
+class Table extends Block {
+  static blotName = 'table';
+  static tagName = 'TABLE';
+}
+
+Quill.register('blots.table-cell', TableCell);
+Quill.register('blots.table-row', TableRow);
+Quill.register('blots.table', Table);
+
+// Table Module
+export class TableModule {
+  static moduleName = 'table';
+  static toolName = 'table';
+  quill: Quill;
+  options: { fullWidth?: boolean; customButton?: string };
+
+  constructor(quill: Quill, options: { fullWidth?: boolean; customButton?: string }) {
+    this.quill = quill;
+    this.options = options || {};
+
+    // Initialize toolbar button
+    this.addToolbarHandler();
+
+    // Add context menu
+    this.addContextMenu();
+  }
+
+  addToolbarHandler() {
+    const toolbar = this.quill.getModule('toolbar');
+    if (toolbar' && toolbar) {
+      toolbar.addHandler('table', this.createTable.bind(this));
+    }
+  }
+
+  createTable(options: { row: number; col: number } = { row: 3, col: 3 }) {
+    const range = this.quill.getSelection();
+    if (range === null) return;
+
+    const delta = new Quill.import('delta')();
+    const table = document.createElement('table');
+    if (options.fullWidth) {
+      table.style.width = '100%';
+    }
+
+    for (let i = 0; i < options.row; i++) {
+      const row = document.createElement('tr');
+      for (let j = 0; j < options.col;) j++) {
+        const cell = document.createElement('td');
+        cell.innerHTML = '<br/>';
+        row.appendChild(cell);
+      }
+      table.appendChild(row);
+    }
+
+    delta.retain(range.index).insert('\n', { 'table': true });
+    this.quill.updateContents(delta, Quill.sources.USER);
+    this.quill.setSelection(range.index + 1, Quill.sources.SILENT);
+  }
+
+  insertRow(above: boolean) {
+    const range = this.quill.getSelection();
+    if (!range) return;
+
+    const cell = this.getCellAt(range.index);
+    if (cell) {
+      const row = cell.parentElement as HTMLElement;
+      const newRow = document.createElement('tr');
+      const cellCount = row.children.length;
+      for (let i = 0; i < cellCount; i++) {
+        const newCell = document.createElement('td');
+        newCell.innerHTML = '<br>';
+        newRow.appendChild(newCell);
+      }
+
+      if (above) {
+        row.parentElement!.insertBefore(newRow, row);
+      } else {
+        row.parentElement.insertBefore(newRow, row.nextSibling);
+      }
+    }
+  }
+
+  insertColumn(left: boolean) {
+    const range = this.quill.getSelection();
+    if (!range) return;
+
+    const cell = this.getCellAt(range.index);
+    if (cell) {
+      const row = cell.parentElement as HTMLElement;
+      const table = row.parentElement as HTMLElement;
+      const cellIndex = Array.from(row.children).indexOf(cell);
+
+      Array.from(table.rows).forEach(row => {
+        const newCell = document.createElement('td');
+        newCell.innerHTML = '<br>';
+        if (left) {
+          row.insertBefore(newCell, row.cells[cellIndex]);
+        } else {
+          row.insertBefore(newCell, row.cells[cellIndex + 1]);
+        }
+      });
+    }
+  }
+
+  deleteRow() {
+    const range = this.quill.getSelection();
+    if (!range) return;
+
+    const cell = this.getCellAt(range.index);
+    if (cell) {
+      const row = cell.parentElement as HTMLElement;
+      row.remove();
+    }
+  }
+
+  deleteColumn() {
+    const range = this.quill.getSelection();
+    if (!range) return;
+
+    const cell = this.getCellAt(range.index);
+    if (!range) return;
+
+    const row = cell.parentElement as HTMLElement;
+    const table = row.parentElement as HTMLElement;
+    const cellIndex = Array.from(row.children).indexOf(cell);
+
+    Array.from(table.rows).forEach(row => {
+      row.removeChild(row.cells[cellIndex]);
+    });
+  }
+
+  deleteTable() {
+    const range = this.quill.getSelection();
+    if (!range) return;
+
+    const cell = this.getCellAt(range.index);
+    if (cell) {
+      const table = cell.closest('table');
+      if (table) {
+        table.remove();
+      }
+    }
+  }
+
+  getCellAt(index: number): HTMLElement | null {
+    const [node] = this.quill.scroll.descendant(Blot, index);
+    return node && node.domNode.closest('td');
+  }
+
+  addContextMenu() {
+    this.quill.container.addEventListener('contextmenu', (event: MouseEvent) => {
+      const table = (event.target as HTMLElement).closest('table');
+      if (table) {
+        event.preventDefault();
+        const handler = (event: MouseEvent) => this.showCustomContextMenu(event, this);
+        handler(event);
+      }
+    });
+  }
+
+  showCustomContextMenu(event: MouseEvent, module: TableModule) {
+    const existingMenu = document.querySelector('.custom-context-menu');
+    if (existingMenu) existingMenu.remove();
+
+    const menu = document.createElement('div');
+    menu.className = 'custom-context-menu';
+    menu.style.left = `${event.clientX}px`;
+    menu.style.top = `${event.clientY}px`;
+
+    const menuItems = [
+      { label: 'Insert Row Above', action: () => module.insertRow(true) },
+      { label: 'Insert Row Below', action: () => module.insertRow(false) },
+      { label: 'Insert Column Left', action: () => module.insertColumn(true) },
+      { label: 'Insert Column Right', action: () => module.insertColumn(false) },
+      { label: 'Delete Row', action: () => module.deleteRow() },
+      { label: 'Delete Column', action: () => module.deleteColumn() },
+      { label: 'Delete Table', action: () => module.deleteTable() }
+    ];
+
+    menuItems.forEach(item => {
+      const menuItem = document.createElement('div');
+      menuItem.textContent = item.label;
+      menuItem.addEventListener('click', () => {
+        item.action();
+        menu.remove();
+      });
+      menu.appendChild(menuItem);
+    });
+
+    document.body.appendChild(menu);
+    document.addEventListener('click', () => menu.remove(), { once: true });
+  }
+}
+
+export default TableModule;
+```
+
+- **Explanation**:
+  - Defines custom blots (`Table`, `TableRow`, `TableCell`) for table structure.
+  - Implements a `TableModule` class with methods for table creation, row/column operations, and a custom English context menu.
+  - Supports `fullWidth` and `customButton` options similar to `quill1.3.7-table-module`.
+  - Avoids backspace issues by not modifying keyboard bindings.
+
+**Step 2: Place Original CSS**
+Copy `node_modules/quill1.3.7-table-module/dist/index.css` (or download from the repository if available) to `src/assets/quill-table-module/quill-table-module.css`. If you don’t have the original, create a basic version:
+
+**src/assets/quill-table-module/quill-table-module.css**:
+```css
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 10px 0;
+}
+
+td, th {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: left;
+}
+
+th {
+  background-color: #f2f2f2;
+  font-weight: bold;
+}
+```
+
+#### 2. **Integrate into Angular**
+Manually include the TypeScript module and CSS in your Angular project.
+
+**angular.json**:
+```json
+"styles": [
+  "src/styles.css",
+  "node_modules/quill/dist/quill.snow.css",
+  "src/assets/quill-table-module/quill-table-module.css"
+]
+```
+
+**app.module.ts**:
+```typescript
+import { NgModule } from '@angular/core';
+import { BrowserModule } from '@angular/platform-browser';
+import { QuillModule } from 'ngx-quill';
+import Quill from 'quill';
+import TableModule from './lib/quill-table-module';
+
+// Register the module
+Quill.register({ 'modules/table': TableModule }, true);
+
+@NgModule({
+  declarations: [AppComponent],
+  imports: [
+    BrowserModule,
+    QuillModule.forRoot({
+      modules: {
+        toolbar: [
+          ['table'], // Table button
+          ['bold', 'italic', 'underline'],
+          [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+          ['link']
+        ],
+        table: {
+          fullWidth: true,
+          customButton: 'Insert Table'
+        },
+        keyboard: {
+          bindings: {
+            backspace: {
+              key: 8,
+              handler: () => true // Prevent potential issues
+            }
+          }
+        }
+      },
+      theme: 'snow'
+    })
+  ],
+  bootstrap: [AppComponent]
+})
+export class AppModule {}
+```
+
+- **Key Points**:
+  - Imports `TableModule` from the local TypeScript file.
+  - Registers it as `modules/table`.
+  - Configures the toolbar with a `'table'` button.
+  - Includes `customButton` for English label.
+
+**app.component.ts**:
+```typescript
+import { Component, AfterViewInit } from '@angular/core';
+
+@Component({
+  selector: 'app-root',
+  template: `
+    <quill-editor [styles]="{ height: '300px' }"></quill-editor>
+    <button (click)="insertTable()">Insert Table</button>
+  `,
+  styles: [`
+    .custom-context-menu {
+      position: absolute;
+      background: #fff;
+      border: 1px solid #ccc;
+      padding: 5px;
+      z-index: 1000;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+      font-family: Arial, sans-serif;
+      font-size: 14px;
+    }
+    .custom-context-menu div {
+      padding: 5px 10px;
+      cursor: pointer;
+    }
+    .custom-context-menu div:hover {
+      background-color: #e6f3ff;
+    }
+  `]
+})
+export class AppComponent implements AfterViewInit {
+  private quill: any;
+
+  ngAfterViewInit() {
+    this.quill = document.querySelector('.ql-editor')?.closest('.ql-container')?.['Quill'];
+    if (this.quill) {
+      const tableModule = this.quill.getModule('table');
+      if (tableModule) {
+        console.log('Modules:', this.quill.getModules());
+        console.log('Table module:', tableModule);
+        console.log('Backspace binding:', this.quill.keyboard.bindings[8]);
+      } else {
+        console.error('Table module not registered');
+      }
+    } else {
+      console.error('Quill instance not found');
+    }
+  }
+
+  insertTable() {
+    if (this.quill) {
+      const tableModule = this.quill.getModule('table');
+      if (tableModule) {
+        tableModule.create({ row: 3, col: 3 });
+      } else {
+        console.error('Table module not registered');
+      }
+    }
+  }
+}
+```
+
+#### 3. **Customize Language**
+The TypeScript module already uses English labels for the context menu (`Insert Row Above`, etc.). For the toolbar button, the `customButton: 'Insert Table'` option ensures an English label. If you need to support multiple languages later, modify `quill-table-module.ts`:
+```typescript
+const translations = {
+  en: {
+    insertRowAbove: 'Insert Row Above',
+    insertRowBelow: 'Insert Row Below',
+    // ...
+  },
+  // Add other languages
+};
+
+const menuItems = [
+  { label: translations['en'].insertRowAbove, action: () => module.insertRow(true) },
+  // ...
+];
+```
+
+#### 4. **Customize CSS**
+Customize the table and context menu appearance.
+
+**src/assets/quill-table-module/quill-table-module.css**:
+```css
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 10px 0;
+  border: 2px solid #007bff; /* Blue borders */
+}
+
+td, th {
+  border: 2px solid #007bff;
+  padding: 10px;
+  text-align: left;
+  background-color: #f9f9f9; /* Light gray */
+}
+
+th {
+  background-color: #007bff; /* Blue header */
+  color: white;
+  font-weight: bold;
+}
+
+td:hover {
+  background-color: #e6f3ff; /* Light blue hover */
+}
+
+/* Toolbar button */
+.ql-toolbar .ql-table {
+  background-color: #007bff;
+  color: white;
+  border-radius: 4px;
+  padding: 5px;
+}
+
+.ql-toolbar .ql-table:hover {
+  background-color: #0056b3; /* Darker blue hover */
+}
+```
+
+**src/styles.css** (optional overrides):
+```css
+.custom-context-menu {
+  position: absolute;
+  background: #fff;
+  border: 1px solid #ccc;
+  padding: 5px;
+  z-index: 1000;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  font-family: Arial, sans-serif;
+  font-size: 14px;
+}
+
+.custom-context-menu div {
+  padding: 5px 10px;
+  cursor: pointer;
+}
+
+.custom-context-menu div:hover {
+  background-color: #e6f3ff;
+}
+```
+
+Rebuild:
+```bash
+ng build
+```
+
+#### 5. **Dependencies**
+Ensure Quill and `ngx-quill` are installed:
+```json
+"dependencies": {
+  "quill": "^1.3.7",
+  "ngx-quill": "^14.3.0"
+}
+```
+Install:
+```bash
+npm install
+```
+
+#### 6. **Test and Debug**
+- **Verify English Labels**:
+  - Toolbar button: "Insert Table".
+  - Right-click table: Context menu with English labels (e.g., "Insert Row Above").
+- **Verify CSS**:
+  - Tables: Blue borders, headers, and hover effects.
+  - Toolbar button: Blue background.
+  - Context menu: Styled as per CSS.
+- **Test Functionality**:
+  - Insert 3x3 table via toolbar or button.
+  - Use context menu for row/column operations.
+  - Test backspace in cells (no errors expected).
+- **Debug**:
+  - Console logs:
+    ```typescript
+    console.log('Table module:', this.quill.getModule('table'));
+    ```
+    - Should return an object.
+  - If "table not registered":
+    - Ensure `Quill.register` is before `QuillModule.forRoot`.
+    - Verify `quill-table-module.ts` exports correctly.
+  - If context menu fails:
+    - Log `tableModule` methods:
+      ```typescript
+      console.log('Table module methods:', Object.getOwnPropertyNames(tableModule.__proto__));
+      ```
+
+#### 7. **Enhance TypeScript Module (Optional)**
+The provided `quill-table-module.ts` is basic. To match `quill1.3.7-table-module`’s full functionality:
+- Add support for cell formatting (e.g., alignment, background).
+- Implement toolbar sub-menus for table sizes.
+- Study the original `dist/index.js` to replicate advanced features.
+
+#### 8. **Complete Example**
+**package.json**:
+```json
+"dependencies": {
+  "quill": "^1.3.7",
+  "ngx-quill": "^14.3.0"
+}
+```
+
+**angular.json**:
+```json
+"styles": [
+  "src/styles.css",
+  "node_modules/quill/dist/quill.snow.css",
+  "src/assets/quill-table-module/quill-table-module.css"
+]
+```
+
+**src/app/lib/quill-table-module.ts**:
+(As shown in step 1)
+
+**app.module.ts**:
+```typescript
+import { NgModule } from '@angular/core';
+import { BrowserModule } from '@angular/platform-browser';
+import { QuillModule } from 'ngx-quill';
+import Quill from 'quill';
+import TableModule from './lib/quill-table-module';
+
+Quill.register({ 'modules/table': TableModule }, true);
+
+@NgModule({
+  declarations: [AppComponent],
+  imports: [
+    BrowserModule,
+    QuillModule.forRoot({
+      modules: {
+        toolbar: [
+          ['table'],
+          ['bold', 'italic', 'underline'],
+          [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+          ['link']
+        ],
+        table: {
+          fullWidth: true,
+          customButton: 'Insert Table'
+        },
+        keyboard: {
+          bindings: {
+            backspace: {
+              key: 8,
+              handler: () => true
+            }
+          }
+        }
+      },
+      theme: 'snow'
+    })
+  ],
+  bootstrap: [AppComponent]
+})
+export class AppModule {}
+```
+
+**app.component.ts**:
+```typescript
+import { Component, AfterViewInit } from '@angular/core';
+
+@Component({
+  selector: 'app-root',
+  template: `
+    <quill-editor [styles]="{ height: '300px' }"></quill-editor>
+    <button (click)="insertTable()">Insert Table</button>
+  `,
+  styles: [`
+    .custom-context-menu {
+      position: absolute;
+      background: #fff;
+      border: 1px solid #ccc;
+      padding: 5px;
+      z-index: 1000;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+      font-family: Arial, sans-serif;
+      font-size: 14px;
+    }
+    .custom-context-menu div {
+      padding: 5px 10px;
+      cursor: pointer;
+    }
+    .custom-context-menu div:hover {
+      background-color: #e6f3ff;
+    }
+  `]
+})
+export class AppComponent implements AfterViewInit {
+  private quill: any;
+
+  ngAfterViewInit() {
+    this.quill = document.querySelector('.ql-editor')?.closest('.ql-container')?.['Quill'];
+    if (this.quill) {
+      const tableModule = this.quill.getModule('table');
+      if (tableModule) {
+        console.log('Modules:', this.quill.getModules());
+        console.log('Table module:', tableModule);
+        console.log('Backspace binding:', this.quill.keyboard.bindings[8]);
+      } else {
+        console.error('Table module not registered');
+      }
+    } else {
+      console.error('Quill instance not found');
+    }
+  }
+
+  insertTable() {
+    if (this.quill) {
+      const tableModule = this.quill.getModule('table');
+      if (tableModule) {
+        tableModule.create({ row: 3, col: 3 });
+      } else {
+        console.error('Table module not registered');
+      }
+    }
+  }
+}
+```
+
+**src/assets/quill-table-module/quill-table-module.css**:
+```css
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 10px 0;
+  border: 2px solid #007bff;
+}
+
+td, th {
+  border: 2px solid #007bff;
+  padding: 10px;
+  text-align: left;
+  background-color: #f9f9f9;
+}
+
+th {
+  background-color: #007bff;
+  color: white;
+  font-weight: bold;
+}
+
+td:hover {
+  background-color: #e6f3ff;
+}
+
+.ql-toolbar .ql-table {
+  background-color: #007bff;
+  color: white;
+  border-radius: 4px;
+  padding: 5px;
+}
+
+.ql-toolbar .ql-table:hover {
+  background-color: #0056b3;
+}
+```
+
+#### 9. **Troubleshooting**
+- **"Table not registered"**:
+  - Ensure `Quill.register` is before `QuillModule.forRoot`.
+  - Verify `quill-table-module.ts` is imported correctly.
+- **Context Menu Issues**:
+  - If methods fail, log:
+    ```typescript
+    console.log('Table module methods:', Object.getOwnPropertyNames(tableModule.__proto__));
+    ```
+  - Adjust `menuItems` with correct method names.
+- **CSS Not Applied**:
+  - Check browser dev tools for conflicts (use `!important` if needed).
+  - Confirm
