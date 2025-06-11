@@ -1,0 +1,65 @@
+import Quill from 'quill';
+const Parchment = Quill.import('parchment');
+
+// Define TableCell format
+let TableCell = new Parchment.Attributor.Class('table-cell', 'ql-table-cell', {
+  scope: Parchment.Scope.BLOCK
+});
+
+// Define Table format
+let Table = new Parchment.Attributor.Class('table', 'ql-table', {
+  scope: Parchment.Scope.BLOCK
+});
+
+// Register formats
+Quill.register(TableCell, true);
+Quill.register(Table, true);
+
+// Table module
+const Module = Quill.import('core/module');
+
+class TableModule extends Module {
+  static DEFAULTS = {
+    rows: 3,
+    columns: 3
+  };
+
+  constructor(quill, options) {
+    super(quill, options);
+    this.quill = quill;
+    this.toolbar = quill.getModule('toolbar');
+    if (this.toolbar) {
+      this.toolbar.addHandler('table', this.insertTable.bind(this));
+    }
+  }
+
+  insertTable() {
+    const range = this.quill.getSelection();
+    if (range == null) return;
+
+    const tableId = `table-${Date.now()}`;
+    let delta = new Quill.import('delta')();
+
+    // Insert table structure
+    for (let i = 0; i < TableModule.DEFAULTS.rows; i++) {
+      for (let j = 0; j < TableModule.DEFAULTS.columns; j++) {
+        delta.insert('\n', { 'table-cell': `cell-${tableId}-${i}-${j}`, 'table': tableId });
+      }
+    }
+
+    this.quill.updateContents(delta, 'user');
+    this.quill.setSelection(range.index, 'silent');
+  }
+}
+
+Quill.register('modules/table', TableModule);
+
+// Add custom CSS for tables
+const style = document.createElement('style');
+style.innerHTML = `
+  .ql-table-cell { border: 1px solid #ccc; padding: 5px; }
+  .ql-table { display: table; border-collapse: collapse; width: 100%; }
+`;
+document.head.appendChild(style);
+
+export { TableModule };
