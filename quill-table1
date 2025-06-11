@@ -1,5 +1,16 @@
 import Quill from 'quill';
+
+// Import Parchment and Module explicitly
 const Parchment = Quill.import('parchment');
+const Module = Quill.import('core/module');
+
+// Define interfaces for type safety
+interface QuillInstance {
+  getSelection: (focus?: boolean) => { index: number; length: number } | null;
+  updateContents: (delta: any, source?: string) => void;
+  setSelection: (index: number, source?: string) => void;
+  getModule: (name: string) => any;
+}
 
 // Define TableCell format
 const TableCell = new Parchment.Attributor.Class('table-cell', 'ql-table-cell', {
@@ -16,19 +27,24 @@ Quill.register(TableCell, true);
 Quill.register(Table, true);
 
 // Custom Table Module
-class TableModule {
+class TableModule extends Module {
   static DEFAULTS = {
     rows: 3,
     columns: 3
   };
 
-  constructor(quill, options) {
+  private quill: QuillInstance; // Properly typed Quill instance
+  private options: any; // Options remain any for flexibility
+
+  constructor(quill: QuillInstance, options: any = {}) {
+    super(quill, options);
     this.quill = quill;
     this.options = options;
-    this.toolbar = quill.getModule('toolbar');
-    if (this.toolbar) {
-      // Register the table handler for the toolbar
-      this.toolbar.addHandler('table', this.insertTable.bind(this));
+
+    // Get toolbar and register handler
+    const toolbar = this.quill.getModule('toolbar');
+    if (toolbar) {
+      toolbar.addHandler('table', this.insertTable.bind(this));
     }
   }
 
@@ -38,13 +54,13 @@ class TableModule {
 
     const tableId = `table-${Date.now()}`;
     const Delta = Quill.import('delta');
-    let delta = new Delta();
+    const delta = new Delta();
 
     // Create a 3x3 table
     for (let i = 0; i < TableModule.DEFAULTS.rows; i++) {
       for (let j = 0; j < TableModule.DEFAULTS.columns; j++) {
         delta.insert('\n', {
-          'table': tableId,
+          table: tableId,
           'table-cell': `cell-${tableId}-${i}-${j}`
         });
       }
