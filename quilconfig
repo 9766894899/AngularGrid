@@ -1,0 +1,31 @@
+class TableModule extends Module {
+  // ... existing code ...
+  insertRowAbove() {
+    const range = this.quill.getSelection();
+    if (!range) return;
+    const tableId = `table-${Date.now()}`;
+    const Delta = Quill.import('delta');
+    const delta = new Delta();
+    for (let j = 0; j < TableModule.DEFAULTS.columns; j++) {
+      delta.insert('\n', { table: tableId, 'table-cell': `cell-${tableId}-0-${j}` });
+    }
+    this.quill.updateContents(delta, 'user');
+  }
+}
+
+// Update quillConfig in component
+quillConfig = {
+  toolbar: {
+    container: [
+      ['bold', 'italic', 'underline'],
+      [{ header: [1, 2, 3, false] }],
+      ['table', 'row-above'],
+      ['clean']
+    ],
+    handlers: {
+      table: function () { this.quill.getModule('table').insertTable(); },
+      'row-above': function () { this.quill.getModule('table').insertRowAbove(); }
+    }
+  },
+  table: true
+};
