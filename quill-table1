@@ -2,48 +2,51 @@ import Quill from 'quill';
 const Parchment = Quill.import('parchment');
 
 // Define TableCell format
-let TableCell = new Parchment.Attributor.Class('table-cell', 'ql-table-cell', {
+const TableCell = new Parchment.Attributor.Class('table-cell', 'ql-table-cell', {
   scope: Parchment.Scope.BLOCK
 });
 
 // Define Table format
-let Table = new Parchment.Attributor.Class('table', 'ql-table', {
+const Table = new Parchment.Attributor.Class('table', 'ql-table', {
   scope: Parchment.Scope.BLOCK
 });
 
-// Register formats
+// Register formats with Quill
 Quill.register(TableCell, true);
 Quill.register(Table, true);
 
-// Table module
-const Module = Quill.import('core/module');
-
-class TableModule extends Module {
+// Custom Table Module
+class TableModule {
   static DEFAULTS = {
     rows: 3,
     columns: 3
   };
 
   constructor(quill, options) {
-    super(quill, options);
     this.quill = quill;
+    this.options = options;
     this.toolbar = quill.getModule('toolbar');
     if (this.toolbar) {
+      // Register the table handler for the toolbar
       this.toolbar.addHandler('table', this.insertTable.bind(this));
     }
   }
 
   insertTable() {
     const range = this.quill.getSelection();
-    if (range == null) return;
+    if (!range) return;
 
     const tableId = `table-${Date.now()}`;
-    let delta = new Quill.import('delta')();
+    const Delta = Quill.import('delta');
+    let delta = new Delta();
 
-    // Insert table structure
+    // Create a 3x3 table
     for (let i = 0; i < TableModule.DEFAULTS.rows; i++) {
       for (let j = 0; j < TableModule.DEFAULTS.columns; j++) {
-        delta.insert('\n', { 'table-cell': `cell-${tableId}-${i}-${j}`, 'table': tableId });
+        delta.insert('\n', {
+          'table': tableId,
+          'table-cell': `cell-${tableId}-${i}-${j}`
+        });
       }
     }
 
@@ -52,13 +55,23 @@ class TableModule extends Module {
   }
 }
 
+// Register the TableModule with Quill
 Quill.register('modules/table', TableModule);
 
-// Add custom CSS for tables
+// Add basic CSS for tables
 const style = document.createElement('style');
 style.innerHTML = `
-  .ql-table-cell { border: 1px solid #ccc; padding: 5px; }
-  .ql-table { display: table; border-collapse: collapse; width: 100%; }
+  .ql-table {
+    display: table;
+    border-collapse: collapse;
+    width: 100%;
+    margin: 10px 0;
+  }
+  .ql-table-cell {
+    border: 1px solid #ccc;
+    padding: 8px;
+    display: table-cell;
+  }
 `;
 document.head.appendChild(style);
 
