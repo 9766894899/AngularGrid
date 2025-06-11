@@ -25,3 +25,32 @@ onEditorCreated(quill: any) {
   }
 
 (onEditorCreated)="onEditorCreated($event)"
+
+ngAfterViewInit() {
+    // Patch context menu text dynamically
+    const contextMenuLabels = {
+      '在上方插入行': 'Insert Row Above',
+      '在下方插入行': 'Insert Row Below',
+      '在左侧插入列': 'Insert Column Left',
+      '在右侧插入列': 'Insert Column Right',
+      '删除行': 'Delete Row',
+      '删除列': 'Delete Column',
+      '删除表格': 'Delete Table',
+      '自定义行列数': 'Custom Size'
+    };
+
+    const observer = new MutationObserver(() => {
+      const menuItems = document.querySelectorAll('.table-contextmenu li');
+      menuItems.forEach(item => {
+        const text = item.textContent?.trim();
+        if (text && contextMenuLabels[text]) {
+          item.textContent = contextMenuLabels[text];
+        }
+      });
+    });
+
+    observer.observe(document.querySelector('.ql-editor') || document.body, {
+      childList: true,
+      subtree: true
+    });
+  }
