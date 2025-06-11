@@ -13,3 +13,15 @@
       'custom-size': { text: 'Custom Size' } // For "自定义行列数"
     }
   }
+onEditorCreated(quill: any) {
+    const tableModule = quill.getModule(TableHandler.moduleName);
+    if (tableModule) {
+      console.log('TableModule registered');
+      // Log context menu options
+      console.log('Context Menu Options:', tableModule.options?.menuOptions || 'No menu options found');
+    } else {
+      console.error('TableModule not registered');
+    }
+  }
+
+(onEditorCreated)="onEditorCreated($event)"
