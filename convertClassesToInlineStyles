@@ -1,0 +1,57 @@
+export function convertClassesToInlineStyles(htmlString: string): string {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(htmlString, 'text/html');
+  const elements = doc.querySelectorAll('[class]');
+
+  // Function to get CSS properties defined in a class rule
+  const getClassProperties = (className: string): { [key: string]: string } => {
+    const properties: { [key: string]: string } = {};
+    // Iterate through all stylesheets
+    for (const sheet of Array.from(document.styleSheets)) {
+      try {
+        // Access CSS rules (may throw SecurityError for cross-origin sheets)
+        const rules = sheet.cssRules || sheet.rules;
+        for (const rule of Array.from(rules)) {
+          if (rule instanceof CSSStyleRule && rule.selectorText === `.${className}`) {
+            // Extract all declared properties
+            const style = rule.style;
+            for (let i = 0; i < style.length; i++) {
+              const prop = style.item(i);
+              const value = style.getPropertyValue(prop);
+              // Convert kebab-case to camelCase for inline style
+              const inlineProp = prop.replace(/-([a-z])/g, g => g[1].toUpperCase());
+              properties[inlineProp] = value;
+            }
+          }
+        }
+      } catch (e) {
+        // Ignore cross-origin stylesheet errors
+        console.warn(`Cannot access stylesheet: ${sheet.href}`);
+      }
+    }
+    return properties;
+  };
+
+  elements.forEach((element: any) => {
+    const classes = element.className.split(' ').filter(cls => cls);
+    if (!classes.length) return;
+
+    const inlineStyles: string[] = [];
+
+    // Process each class
+    classes.forEach(className => {
+      const props = getClassProperties(className);
+      Object.entries(props).forEach(([prop, value]) => {
+        inlineStyles.push(`${prop}: ${value};`);
+      });
+    });
+
+    // Apply inline styles
+    if (inlineStyles.length) {
+      const existingStyle = element.getAttribute('style') || '';
+      element.setAttribute('style', `${existingStyle} ${inlineStyles.join(' ')}`);
+    }
+  });
+
+  return doc.body.innerHTML;
+}
