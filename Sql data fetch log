@@ -1,0 +1,6 @@
+SELECT
+  REGEXP_SUBSTR(log_string, 'filename:([^|]*)', 1, 1, NULL, 1) AS filename,
+  REGEXP_SUBSTR(log_string, 'uen:([^|]*)', 1, 1, NULL, 1) AS uen,
+  REGEXP_SUBSTR(log_string, 'extectedformat:([^|]*)', 1, 1, NULL, 1) AS expectedformat,
+  REGEXP_SUBSTR(log_string, 'entityid:([^|]*)', 1, 1, NULL, 1) AS entityid
+FROM log_table;
